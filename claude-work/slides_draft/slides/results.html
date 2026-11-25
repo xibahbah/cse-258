@@ -1,0 +1,16 @@
+<section id="results">
+<p class="kicker">Section 4 · Results</p>
+<h2>EASE wins. Tuned ALS is within a tenth.</h2>
+<table>
+<tr><th>Model (test set, 20,940 users)</th><th class="num">HR@10</th><th class="num">NDCG@10</th><th class="num">MRR</th><th class="num">AUC</th></tr>
+<tr class="win"><td>EASE</td><td class="num">0.3483</td><td class="num">0.2251</td><td class="num">0.2007</td><td class="num">0.9094</td></tr>
+<tr class="second"><td>ALS (binary)</td><td class="num">0.3249</td><td class="num">0.2042</td><td class="num">0.1812</td><td class="num">0.9468</td></tr>
+<tr><td>ALS (playtime-weighted)</td><td class="num">0.3096</td><td class="num">0.1951</td><td class="num">0.1737</td><td class="num">0.9429</td></tr>
+<tr><td>PureSVD</td><td class="num">0.2661</td><td class="num">0.1642</td><td class="num">0.1467</td><td class="num">0.9168</td></tr>
+<tr><td>Item-kNN</td><td class="num">0.2432</td><td class="num">0.1511</td><td class="num">0.1358</td><td class="num">0.9275</td></tr>
+<tr><td>BPR-MF</td><td class="num">0.2464</td><td class="num">0.1498</td><td class="num">0.1347</td><td class="num">0.9484</td></tr>
+<tr><td>Popularity</td><td class="num">0.1890</td><td class="num">0.1165</td><td class="num">0.1059</td><td class="num">0.9076</td></tr>
+</table>
+<p class="small" style="margin-top:24px">EASE vs. ALS on NDCG@10: +0.0210, 95% paired-bootstrap interval [+0.0185, +0.0234]. EASE vs. Popularity: +93%.</p>
+<aside>Every personalized model beats Popularity with an interval that excludes zero.</aside>
+</section>

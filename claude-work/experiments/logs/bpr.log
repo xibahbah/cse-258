@@ -1,0 +1,10 @@
+hand BPR f=64 lr=.05 reg=.01 20ep (np.float64(0.12970650088473773), np.float64(0.225)) 48 s
+impl BPR f=64 lr=0.01 reg=0.001 it=100        NDCG=0.0759 HR=0.1268 (18s)
+impl BPR f=64 lr=0.01 reg=0.001 it=300        NDCG=0.0576 HR=0.0952 (49s)
+impl BPR f=64 lr=0.01 reg=0.01 it=100         NDCG=0.1156 HR=0.1882 (18s)
+impl BPR f=64 lr=0.01 reg=0.01 it=300         NDCG=0.0813 HR=0.1404 (50s)
+impl BPR f=64 lr=0.01 reg=0.05 it=100         NDCG=0.1210 HR=0.1926 (17s)
+impl BPR f=64 lr=0.01 reg=0.05 it=300         NDCG=0.1128 HR=0.1838 (49s)
+impl BPR f=64 lr=0.05 reg=0.001 it=100        NDCG=0.0482 HR=0.0850 (16s)
+impl BPR f=64 lr=0.05 reg=0.001 it=300        NDCG=0.0437 HR=0.0776 (50s)
+impl BPR f=64 lr=0.05 reg=0.01 it=100         NDCG=0.0666 HR=0.1202 (17s)

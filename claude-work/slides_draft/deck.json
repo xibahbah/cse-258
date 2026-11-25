@@ -1,0 +1,67 @@
+{
+ "v": 5,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-25T20:44:37Z"
+ },
+ "lists": "css",
+ "format": {
+  "v": 1,
+  "shared": [
+   "project/deck.css"
+  ]
+ },
+ "title": "Recommending Steam Games: CSE 258 Assignment 2",
+ "order": [
+  "cover",
+  "task",
+  "protocol",
+  "data",
+  "audit",
+  "eda",
+  "models",
+  "tuning",
+  "results",
+  "metrics",
+  "bpr",
+  "checks",
+  "recent",
+  "beyond",
+  "related",
+  "close"
+ ],
+ "cover": "cover",
+ "sections": {
+  "s1": {
+   "description": "Section 1: the predictive task, evaluation protocol, and validity checks.",
+   "start": "cover"
+  },
+  "s2": {
+   "description": "Section 2: where the data comes from, the raw-file audit, and exploration.",
+   "start": "data"
+  },
+  "s3": {
+   "description": "Section 3: the seven models and how they were tuned.",
+   "start": "models"
+  },
+  "s4": {
+   "description": "Section 4: results, metric choice, the BPR diagnosis, outside checks, and error analysis.",
+   "start": "results"
+  },
+  "s5": {
+   "description": "Section 5: related work, conclusions, and limitations.",
+   "start": "related"
+  }
+ },
+ "faces": {
+  "inter": {
+   "family": "Inter",
+   "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+  },
+  "space-grotesk": {
+   "family": "Space Grotesk",
+   "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap"
+  }
+ },
+ "designSystems": []
+}
