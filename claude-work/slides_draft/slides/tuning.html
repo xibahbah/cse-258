@@ -1,0 +1,9 @@
+<section id="tuning">
+<p class="kicker">Section 3 · Tuning</p>
+<h2>A comparison is only as fair as its weakest search</h2>
+<div class="row">
+<div class="card hot"><h3>ALS lives or dies on regularization</h3><p class="ctext">Validation NDCG@10 at 64 factors, α = 3:</p><p class="big">0.154 → 0.180 → 0.128</p><p class="ctext">for reg = 20, 80, 300. Fix it at the wrong value and ALS looks far worse than it is.</p></div>
+<div class="card"><h3>We report every edge</h3><p class="ctext">For each setting: is the selected value interior, or on the edge of what we tried?</p><p class="ctext">EASE (λ = 100) and PureSVD (12 factors) are clean interior optima.</p><p class="ctext">ALS and BPR are still rising at 128 factors. We bound that later with a reference library.</p></div>
+</div>
+<aside>Tuned on 5,000 validation users, selected by NDCG@10. The test set is untouched until the final fit.</aside>
+</section>

@@ -1,0 +1,10 @@
+<section id="checks">
+<p class="kicker">Section 4 · Is the result right?</p>
+<h2>Three checks that do not depend on our code or our split</h2>
+<div class="row">
+<div class="card"><h3>1. A second implementation</h3><p class="big">0.2034 vs. 0.2042</p><p class="ctext">implicit library ALS vs. ours at identical settings. With factors doubled to 256 it reaches 0.2092, still below EASE.</p></div>
+<div class="card"><h3>2. Re-drawn splits</h3><p class="big">4 of 4</p><p class="ctext">splits won by EASE, by at least 0.0210. No model moves more than 0.0030 between splits.</p></div>
+<div class="card hot"><h3>3. A different hidden game</h3><p class="big">+90% → +24%</p><p class="ctext">EASE's margin over Popularity when we hide a recently played game instead of a random one.</p></div>
+</div>
+<aside>Check 3 uses playtime_2weeks, the only time-related field in the file.</aside>
+</section>

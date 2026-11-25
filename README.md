@@ -30,6 +30,7 @@ This is the layout once the v3 files are added to the repo.
 |---|---|
 | `steam_game_recommender_v3.ipynb` | Current notebook, executed, with outputs |
 | `workbook.html` | HTML export of the above. This is the submission file |
+| `claude-work/` | Working files behind v3: slides draft, figures, experiment scripts and logs, build scripts, the v2 re-run. Not submitted |
 | `SLIDES_OUTLINE.md` | Slide-by-slide outline with numbers, figures, and which code cells to show |
 | `CSE 258 Assignment 2 Script v2.docx` | Presentation script matched to v3 numbers (draft; reword before recording) |
 | `steam_game_recommender_v2.ipynb` | Previous notebook, kept for reference |

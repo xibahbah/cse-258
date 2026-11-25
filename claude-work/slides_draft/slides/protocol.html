@@ -1,0 +1,19 @@
+<section id="protocol">
+<p class="kicker">Section 1 · Evaluation and validity</p>
+<h2>How we evaluate, and how we know the evaluation is sound</h2>
+<div class="row">
+<div class="col">
+<h3>Protocol</h3>
+<p class="body">Per user: 1 test game, 1 validation game, the rest for training.</p>
+<p class="body">Every model ranks the full catalog. No sampled negatives.</p>
+<p class="body">HR@10, NDCG@10, MRR, AUC, each with a 95% bootstrap interval.</p>
+</div>
+<div class="col">
+<h3>Validity checks</h3>
+<p class="body">Random must sit at chance: 0.0027 measured vs. 0.0028 expected.</p>
+<p class="body">Metric code passes known-answer tests.</p>
+<p class="body">Results must survive a second implementation, re-drawn splits, and a different hidden game.</p>
+</div>
+</div>
+<aside>Baselines: Random as a sanity check, Popularity as the non-personalized bar every model must clear.</aside>
+</section>

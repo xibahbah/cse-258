@@ -1,0 +1,91 @@
+# Recommending Steam Games: A Comparison of Collaborative Filtering Models
+~ Presentation script, version 2. Target length 20 minutes. Bracketed lines are cues, not spoken. Speaker splits are suggestions. Say it in your own words; do not read it aloud.
+
+## Opening — 0:00–0:40 (Speaker 1)
+[Slide 1: title]
+Hello everyone. This is our project on recommending Steam games from user-game interaction data.
+Steam is a digital store for PC games. Our question is simple: given the games someone has already played, which other games should we show them?
+We compare seven recommenders, from a popularity baseline through the collaborative filtering models from this course, to one method from outside the course called EASE. We will cover the task, the data, the models, the results, and related work, in that order. A large part of this talk is about how we checked that the comparison itself is right.
+
+## 1. Predictive task, evaluation, and baselines — 0:40–3:30 (Speaker 1)
+[Slide 2: the task. Notebook Section 1]
+The task is personalized top-N recommendation from implicit feedback.
+Each user is a set of games they have played. We hide one of those games, give the model the rest, and ask it to rank every game the user has not played. The model is judged on where the hidden game lands in that ranking.
+Steam has no star ratings. What we observe is which games a user owns and how many minutes they played each one. So we treat positive playtime as the signal, and we rank instead of predicting a rating, because a ranked list is what a store front needs.
+One thing to be clear about. The hidden game is a random one of the user's games, not the most recent one. The file has no timestamps. So this is a recover-a-hidden-game task. We are not claiming to predict the next game someone will play.
+[Slide 3: evaluation and validity]
+For evaluation, each user gets one test game, one validation game, and the rest go to training. We tune on validation only, refit on training plus validation, and score once on test.
+Every model ranks the full catalog. We do not use sampled negatives, because sampled metrics are known to change which model looks best.
+We report four metrics. Hit Rate at 10 asks whether the hidden game is in the top ten. NDCG at 10 also rewards putting it near the top of those ten. MRR is the reciprocal of its rank. AUC is how often the hidden game outranks a random other game. Since there is one relevant game per user, recall at ten equals hit rate at ten, and precision adds nothing, so we leave those out.
+We have two baselines. Random is a sanity check: its hit rate should match ten divided by the catalog size, and it does, 0.0027 against an expected 0.0028. Popularity recommends the most-played games to everyone, and on long-tailed data it is hard to beat.
+For validity, we wanted more than our own numbers. The metric code passes tests with known answers. And the main result has to survive a second implementation, a re-drawn split, and a different choice of hidden game. We come back to all three.
+
+## 2. Data, exploration, and preprocessing — 3:30–6:30 (Speaker 2)
+[Slide 4: the data. Notebook Section 2.1]
+The data is the Australian users file from the UCSD McAuley Lab Steam collection. Each line is one public profile, with the games owned and the minutes played for each. The profile crawl comes from O'Neill and colleagues' 2016 measurement study of Steam.
+The raw file has 88,310 lines. We started from the raw records instead of a cleaned table, and that turned up two things.
+First, 684 lines are repeats of a user who is already in the file. If we treated those as separate users, one copy's hidden game would sit in the other copy's training data, which leaks the answer. We merge them by user ID.
+[Slide 5: owned is not played. Notebook Section 2.2]
+Second, owning a game is not the same as choosing it. The most-owned title in our sample is called Dota 2 Test. Over seventeen thousand profiles own it, and seven percent ever launched it. Left 4 Dead 2 Beta is four percent. These are granted automatically. Compare that with Counter-Strike at ninety-nine percent.
+Overall, 36.8 percent of owned games have zero playtime. If we had used ownership as the signal, the popularity baseline would recommend a test client to everyone. So a positive interaction is playtime above zero.
+[Slide 6: exploratory plots. Notebook Section 2.3]
+The exploratory plots show three things. Users with very large libraries leave more of them unplayed, which fits bundle and sale purchases. Game popularity is heavily skewed: a few games hold most of the interactions. And the number of owners tells you almost nothing about how long people play, with a rank correlation near zero.
+That skew matters for modeling. It makes Popularity strong on the biggest games, so later we break results down by how popular the hidden game is.
+[Notebook Section 2.4: preprocessing cell]
+For preprocessing, we take a random 35 percent of profiles to keep the dense item matrices manageable. We then apply an iterative filter: every user needs at least five played games and every game at least twenty players. We repeat it until nothing changes, because removing users can push games below the threshold and the reverse.
+That leaves 20,940 users, 3,570 games, and about 1.06 million training interactions. We build two training matrices: a binary one, and one weighted by the log of hours played.
+
+## 3. Modeling and tuning — 6:30–11:00 (Speaker 3)
+[Slide 7: the models. Notebook Section 3]
+Every model has the same input and output. The input is the user-by-game matrix. The output is a score for every game, and we recommend the ten highest-scoring games the user has not played. What differs is what each model optimizes.
+Four of the models come from this course. Popularity scores a game by its number of players. Item k-nearest-neighbors uses cosine similarity between game audiences and sums the similarities to the games a user has played. Implicit ALS is the latent factor model for implicit feedback: it fits user and game vectors with a squared error over every cell, and gives observed cells more confidence. BPR also learns user and game vectors, but with a pairwise loss: a played game should score above a sampled unplayed one.
+PureSVD is a truncated SVD of the zero-filled matrix. The course brings it up as a contrast to the latent factor model, because it optimizes a different objective.
+EASE is the one model from outside the course. It learns a game-to-game weight matrix that reconstructs each user's row, with the diagonal forced to zero so a game cannot predict itself. Its closest relative in the course is SLIM. The difference is that EASE keeps only the L2 penalty, which gives it a closed-form solution: one matrix inverse, no gradient descent. It is not AutoRec, which has a hidden layer.
+The trade-offs are mostly about cost. Item-kNN and EASE need a game-by-game matrix, so memory grows with the square of the catalog. ALS is cubic in the number of factors. BPR is cheap per epoch but needs many epochs and a learning rate. We implemented all of them in NumPy and SciPy behind one interface, so one evaluation routine scores everything.
+[Notebook Section 3: model code cell. Scroll to each class as you name it]
+In the code, each model is a small class with a fit method and a score method. EASE is the shortest. It builds the game-by-game co-occurrence matrix, adds lambda to the diagonal, inverts it, and divides each column by its diagonal entry. That is the whole model.
+ALS alternates. It holds the game vectors fixed and solves one small linear system per user, then holds the user vectors fixed and does the same per game. The confidence weights enter that system, which is how observed games count for more than missing ones.
+BPR runs mini-batch gradient descent. For each batch it takes played pairs, samples one unplayed game per pair, re-samples any that the user has in fact played, and nudges the played game's score above the sampled one.
+[Slide 8: tuning. Notebook Section 4.2, tuning log and edge table]
+Tuning turned out to matter as much as the choice of model.
+A model whose best setting is on the edge of its grid has not really been tuned, because the true optimum could be outside. So for every setting we report whether the selected value is interior or on an edge.
+The clearest case is ALS regularization. At 64 factors, validation NDCG at 10 is 0.154 with a regularization of 20, 0.180 with 80, and 0.128 with 300. That one setting moves ALS more than anything else we tried. A comparison that fixes it at a poor value makes ALS look much worse than it is, and makes every other model look better by comparison.
+EASE and PureSVD have clean interior optima. ALS and BPR were still improving slowly at 128 factors, which is as far as our NumPy code can go in reasonable time. We say so in the notebook, and we bound what that could be worth with a reference library, which the next section covers.
+
+## 4. Evaluation and results — 11:00–17:30 (Speakers 3 and 4)
+[Notebook Section 4.1: rank_of_targets and the test cell]
+Before the results, the evaluation code, because every number depends on it. It is one function. It scores a batch of users against all games, sets the games each user already has to minus infinity, and counts how many games score at least as high as the hidden one. That count is the rank. Ties count against the model, so a model cannot gain by giving many games the same score. All four metrics are computed from that one rank.
+Right below it are tests with known answers. These are small hand-written score tables where we can work out the correct rank on paper: a masked game, a tie, a best case and a worst case. We also check that no user's hidden game appears in their training row. All of them pass.
+[Slide 9: results table. Notebook Section 4.3]
+Here are the test results on all 20,940 users.
+EASE is best, with NDCG at 10 of 0.2251 and a hit rate of 0.348. Binary ALS is second at 0.2042. Then playtime-weighted ALS at 0.195, PureSVD at 0.164, Item-kNN and BPR close together near 0.15, and Popularity at 0.1165.
+EASE nearly doubles Popularity. Against ALS, the difference is 0.021, about ten percent, and the paired bootstrap interval excludes zero. So EASE's lead is real, but the best course model is close behind once it is tuned.
+[Slide 10: the metrics disagree]
+Now look at the AUC column, because it tells a different story. On AUC, BPR is first at 0.948, ALS is second, and EASE is nearly last at 0.909, level with Popularity.
+Both are correct. AUC averages over all 3,570 positions in the ranking. NDCG at 10 only looks at the top ten. BPR and ALS order the whole catalog well. EASE concentrates its accuracy at the very top. For a top-N task the top is what a user sees, so NDCG and hit rate are the right metrics, and they are what we used to select models. If we had reported only AUC, we would have named a different winner.
+[Slide 11: BPR diagnosis. Notebook Section 4.2, diagnosis plots]
+That raises the obvious question about BPR. It is a course model that is supposed to optimize ranking directly, and it lands near the bottom on our main metric. We tested three explanations.
+Is it under-trained? No. Its training curves flatten well before the last epoch.
+Is it the objective? By the end of training, BPR orders 96 percent of its sampled pairs correctly. It has almost nothing left to learn from them. But those pairs compare a played game with a random game, and a random game is almost never a serious candidate for the top ten. BPR is meeting its objective. Its objective is just not our metric.
+Would harder negatives fix it? We tried sampling negatives by popularity. Validation NDCG dropped from 0.142 to 0.078. Under a random holdout the hidden games are mostly popular ones, so punishing popular games punishes the answers.
+[Slide 12: three outside checks. Notebook Section 4.4]
+Next, the question we care most about: is the results table right? We ran three checks that do not depend on our own code or our one split.
+First, a second implementation. The course demonstrates the implicit library for ALS and BPR. At identical settings, the library's ALS scores 0.2034 and ours scores 0.2042. Two independent solvers agree. When we let the library double the factors to 256, it reaches 0.209, still below EASE. The library's BPR scores slightly below ours. So neither result is an artifact of our code.
+Second, re-drawn splits. We re-drew the hidden game for every user three more times and refit every model. EASE won all four splits by at least 0.021, and no model moved by more than 0.003.
+[Slide 13: recent holdout]
+Third, a different hidden game. The file has a field we had not used: playtime in the last two weeks. For users who have a recently played game, we hid that one instead of a random one. This is not a true temporal split, but it is the closest the data allows.
+The winner holds: EASE is still first. But three things change. Popularity alone jumps from 0.112 to 0.264, because recently played games are mostly hits. EASE's margin over Popularity falls from 90 percent to 24 percent. And playtime-weighted ALS, which lost to binary ALS in the main table, now beats it, 0.314 against 0.2905. A game someone is playing right now is one they are invested in, and the weighted model has learned which games those are.
+So the ordering at the top is stable. The size of the win is not. It depends on what you count as the right answer.
+[Slide 14: error analysis. Notebook Sections 4.5 and 4.6]
+Finally, where does personalization help? On the hundred most popular games, every model does well, including Popularity. On tail games Popularity scores zero and EASE still finds some. And the top-ten lists differ in reach: Popularity uses about 2 percent of the catalog, EASE uses 31 percent, and BPR 36 percent, though at much lower accuracy. Accuracy and discovery are separate goals.
+
+## 5. Related work, conclusions, and limitations — 17:30–20:00 (Speaker 4)
+[Slide 15: related work. Notebook Section 5.1]
+On related work. This dataset comes from the McAuley Lab, and their Steam papers study different tasks: sequential recommendation with SASRec, monotonic behavior chains, and bundle recommendation. Those use timestamps or reviews. Our file has neither, so our absolute numbers cannot be compared with theirs. What can be compared is the ordering of methods.
+On that, our results line up with the literature in three ways. EASE beating matrix factorization matches Steck's 2019 paper, which introduced EASE and names SLIM as its closest relative. The gap shrinking once ALS is tuned matches a 2022 paper by Rendle and colleagues, who showed that properly tuned implicit ALS is competitive with these newer models. And BPR doing well on AUC but poorly at the top of the list fits how BPR was designed, and fits later work showing that uniform negative sampling runs out of gradient on long-tailed catalogs.
+Our evaluation choices follow Krichene and Rendle on sampled metrics, and Ferrari Dacrema and colleagues on tuning baselines properly.
+[Slide 16: conclusions and limits. Notebook Sections 5.2 and 5.3]
+To conclude. A simple linear item-to-item model is the best recommender on this data. The best course model, implicit ALS, is within about ten percent once its regularization is tuned, and most of the larger gap you would see in an untuned comparison is a tuning artifact. BPR's weak top-ten result has an explanation backed by evidence.
+There are limits. This is an offline proxy: a hidden played game is not proof the user would prefer it. The split is random, not temporal, and our recent-game check shows the numbers move when that changes. Hyper-parameters were tuned on one split. And we stopped ALS and BPR at 128 factors.
+What we would defend is the ordering: EASE, then ALS, then the rest, on top-ten metrics. It held under a second implementation, four splits, and a different hidden game. What we would not defend is any claim about the next game a user will play. For that we would need timestamps, and that is the first thing we would add.
+Thank you for watching.

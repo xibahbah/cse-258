@@ -1,0 +1,12 @@
+<section id="data">
+<p class="kicker">Section 2 · Data</p>
+<h2>UCSD Steam data: Australian user libraries with playtime</h2>
+<div class="row">
+<div class="card"><p class="big">88,310</p><p class="ctext">profile lines in the raw file. 684 are repeats of the same user; we merge them.</p></div>
+<div class="card"><p class="big">35%</p><p class="ctext">random sample of profiles, drawn line by line with a fixed seed.</p></div>
+<div class="card"><p class="big">20,940</p><p class="ctext">users and 3,570 games after an iterative 5-core / 20-core filter.</p></div>
+<div class="card"><p class="big">1.06M</p><p class="ctext">training interactions. A positive is playtime above zero.</p></div>
+</div>
+<p class="small" style="margin-top:36px">Source: McAuley Lab Steam Video Game and Bundle Data; profile crawl from O'Neill et al., IMC 2016.</p>
+<aside>Repeated profiles matter: left unmerged, one copy's hidden game would sit in the other copy's training row.</aside>
+</section>

@@ -1,0 +1,36 @@
+section{padding:128px;background:#F6F4EF;color:#14181F;font-family:"Inter",sans-serif;display:flex;flex-direction:column}
+section.dark{background:#14181F;color:#F6F4EF}
+section.accent{background:#1F4E79;color:#F6F4EF}
+.kicker{font-size:24px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#2B6CB0}
+.dark .kicker,.accent .kicker{color:#F2B880}
+h1{font-family:"Space Grotesk",sans-serif;font-size:104px;font-weight:700;line-height:1.05}
+h2{font-family:"Space Grotesk",sans-serif;font-size:60px;font-weight:700;line-height:1.1;margin-top:16px}
+h3{font-family:"Space Grotesk",sans-serif;font-size:34px;font-weight:700;line-height:1.2}
+.body{font-size:30px;line-height:1.4}
+.lede{font-size:36px;line-height:1.35;margin-top:36px;max-width:1500px}
+.small{font-size:24px;line-height:1.4;color:#4A5463}
+.dark .small,.accent .small{color:#C9D1DB}
+.grow{flex:1}
+.row{display:flex;flex-direction:row;gap:40px;margin-top:44px}
+.col{display:flex;flex-direction:column;gap:20px;flex:1}
+.card{flex:1;background:#FFFFFC;border:2px solid #D9D4C7;border-radius:14px;padding:32px;display:flex;flex-direction:column;gap:14px}
+.card .ctext{font-size:26px;line-height:1.38}
+.card .big{font-family:"Space Grotesk",sans-serif;font-size:68px;font-weight:700;color:#1F4E79;line-height:1}
+.card.hot{border-color:#D9772B}
+.card.hot .big{color:#D9772B}
+.pts{font-size:30px;line-height:1.4;margin-top:40px;display:flex;flex-direction:column;gap:22px}
+.pts .pt{font-size:30px;line-height:1.4}
+table{border-collapse:collapse;margin-top:36px;width:100%}
+th{font-size:24px;font-weight:600;text-align:left;padding:12px 16px;border-bottom:3px solid #14181F;color:#4A5463}
+td{font-size:27px;padding:11px 16px;border-bottom:1px solid #D9D4C7}
+tr.win td{background:#FBE9D9;font-weight:700}
+tr.second td{background:#E3EDF7;font-weight:600}
+.num{text-align:right}
+.fig{margin-top:32px;background:#FFFFFF;border:2px solid #D9D4C7;border-radius:10px}
+.tag{font-size:24px;font-weight:600;color:#D9772B}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}}
+.row .card{animation:rise .5s both}
+.row .card:nth-child(2){animation-delay:.12s}
+.row .card:nth-child(3){animation-delay:.24s}
+.row .card:nth-child(4){animation-delay:.36s}
+.fig{animation:rise .5s both}
