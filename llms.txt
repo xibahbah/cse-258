@@ -1,0 +1,13 @@
+# CSE 158/258 · Fall 2026
+
+Compact course material for selective reading. For the Steam project, the first two files cover the rubric and the main course models.
+
+- [Steam project rubric, deliverables, notebook cells](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/assignments/assignment-2.md)
+- [Recommendation methods and metrics](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/slides/recommendation.md)
+- [Worked lecture notebook for recommendation](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/notebooks/recommendation.md)
+- [All topics, textbook chapters, and notebooks](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/README.md)
+- [All public sources and alternate slide editions](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/inventory.md)
+- [Homework 1–4](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/assignments/homework.md)
+- [Assignment 1](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/assignments/assignment-1.md)
+- [Datasets and column names](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/datasets.md)
+- [Lecture recordings by date](https://raw.githubusercontent.com/xibahbah/cse-258/main/course/recordings.md)
