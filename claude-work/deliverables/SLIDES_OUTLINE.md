@@ -57,7 +57,7 @@
 
 ### Slide 6 · Section 2 · Exploration
 - **Figure:** the EDA figure from notebook 2.3.
-- **Three takeaways:** big libraries leave more unplayed · popularity is heavily skewed (long tail) · owner count says almost nothing about hours played (rank correlation about 0.01).
+- **Three takeaways:** mid-sized libraries are the most played (about 70%; smallest decile 55%, largest 59%) · popularity is heavily skewed (long tail) · owner count says almost nothing about hours played (rank correlation about 0.01).
 - **Why it matters:** Popularity will be strong on head games, so results are later split by head, torso, tail.
 
 ### Slide 7 · Section 2 · Preprocessing (code)
@@ -72,14 +72,14 @@
 - **Formulation line:** input = user × game matrix; output = a score for every game; top 10 unplayed are recommended.
 - **Table:**
 
-| Model | What it optimizes | From the course? |
+| Model | What it optimizes | Where it comes from |
 |---|---|---|
-| Popularity | Nothing: number of players | Yes, baseline |
-| Item-kNN | Cosine similarity of game audiences | Yes |
-| PureSVD | Reconstruction of the zero-filled matrix | As a contrast |
-| Implicit ALS | Confidence-weighted squared error, all cells | Yes |
-| BPR-MF | Played game outranks a sampled unplayed one | Yes |
-| EASE | Linear item-to-item autoencoder, closed form | No: outside method |
+| Popularity | Nothing: number of players | Course baseline |
+| Item-kNN | Cosine similarity of game audiences | Course method · item similarity |
+| PureSVD | Reconstruction of the zero-filled matrix | Course concept · truncated SVD |
+| Implicit ALS | Confidence-weighted squared error, all cells | Course method · confidence-weighted ALS |
+| BPR-MF | Played game outranks a sampled unplayed one | Course method · pairwise ranking |
+| EASE | Linear item-to-item autoencoder, closed form | Outside method · related to SLIM |
 
 - **Footnote:** Random as a sanity check. EASE's nearest course relative is SLIM; it is not AutoRec.
 
@@ -132,8 +132,8 @@
 
 ### Slide 15 · Section 4 · Why BPR is weak: three tests
 - **Figure:** the three-panel BPR diagnosis from notebook 4.2.
-- **Three boxes:** Under-trained? No, curves flatten early · Objective vs. metric? 96.3% of sampled pairs already ordered, validation NDCG@10 only 0.142 · Harder negatives? Worse: 0.142 → 0.078.
-- **Footnote:** `implicit` library BPR scores 0.1386 vs. our 0.1498.
+- **Three boxes:** Under-trained? Unlikely: pair accuracy gains under two points over the last ten epochs · Objective vs. metric? 96.3% of sampled pairs already ordered, validation NDCG@10 only 0.142 · Harder negatives? Worse: 0.142 → 0.078.
+- **Footnote:** `implicit` library BPR scores 0.1387 vs. our 0.1498.
 
 ### Slide 16 · Section 4 · Is the result right? Three outside checks
 - **Three boxes:**

@@ -2,10 +2,10 @@
 <p class="kicker">Section 4 · A negative result, explained</p>
 <h2>Why BPR is weak here: three tests</h2>
 <div class="row">
-<div class="card"><h3>Under-trained?</h3><p class="big">No</p><p class="ctext">Gradient weight and pair accuracy flatten well before the last epoch.</p></div>
+<div class="card"><h3>Under-trained?</h3><p class="big">Unlikely</p><p class="ctext">Pair accuracy gains under two points over the last ten epochs.</p></div>
 <div class="card hot"><h3>Objective vs. metric?</h3><p class="big">96.3%</p><p class="ctext">of sampled pairs already ordered correctly, yet validation NDCG@10 is 0.142. It meets its objective, not our metric.</p></div>
 <div class="card"><h3>Easy negatives?</h3><p class="big">0.142 → 0.078</p><p class="ctext">Sampling popular (harder) negatives makes it worse: under a random holdout the answers are popular games.</p></div>
 </div>
-<p class="small" style="margin-top:28px">The implicit library's BPR, tuned separately, scores 0.1386 on test against our 0.1498. The weakness is the method, not our code.</p>
+<p class="small" style="margin-top:28px">The implicit library's BPR, tuned separately, scores 0.1387 on test against our 0.1498. The weakness is the method, not our code.</p>
 <aside>Rubric asks for failed or surprising cases to be explained. This is ours.</aside>
 </section>
