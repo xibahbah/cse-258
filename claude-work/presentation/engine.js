@@ -120,14 +120,14 @@ function clueBanner(sc, k) { if (k <= 0) return; const s = "CLUE " + String(sc.c
 /* ---------- the panel under the picture ---------- */
 const NCL = 10;
 function hud(si, b, tb, T, quiet) { const sc = SCENES[si], bt = sc.beats[cl(b, 0, sc.beats.length - 1)]; R(0, SH, W, 64, K); R(0, SH, W, 1, Y1); R(0, SH + 3, W, 1, DM);
-  const sec = (!quiet && bt.sec) || sc.sec; if (sec) { const w = tw(sec, "P", 2) + 10; R(10, SH + 7, w, 18, Y1); tx(sec, 16, SH + 8, K, { s: 2 }) }
+  const sec = (!quiet && bt.sec) || sc.sec; if (sec) { const w = tw(sec, "P", 2) + 10; R(10, SH + 5, w, 18, Y1); tx(sec, 16, SH + 6, K, { s: 2 }) }
   let have = 0; for (let i = 0; i < SCENES.length; i++) { const s = SCENES[i]; if (!s.clue) continue; const cb = s.beats.findIndex(q => q.clue); if (i < si || (i === si && b >= cb && cb >= 0)) have = Math.max(have, s.clue) }
-  for (let i = 0; i < NCL; i++) { const x = W - 10 - (NCL - i) * 12; R(x, SH + 11, 10, 10, i < have ? Y1 : DM); R(x + 1, SH + 12, 8, 8, i < have ? O1 : K); if (i < have) R(x + 3, SH + 14, 4, 4, Y2) }
-  tx("CLUES", W - 10 - NCL * 12 - 6, SH + 12, GR, { al: "r" });
+  for (let i = 0; i < NCL; i++) { const x = W - 10 - (NCL - i) * 12; R(x, SH + 9, 10, 10, i < have ? Y1 : DM); R(x + 1, SH + 10, 8, 8, i < have ? O1 : K); if (i < have) R(x + 3, SH + 12, 4, 4, Y2) }
+  tx("CLUES", W - 10 - NCL * 12 - 6, SH + 10, GR, { al: "r" });
   if (quiet) return; const say = bt.say || []; let left = Math.floor(tb * 46);
-  say.forEach((l, i) => { const n = Math.min(l.length, Math.max(0, left)); left -= l.length; if (n > 0) { if (i === 0) tx(l.slice(0, n), 12, SH + 29, Y2, { s: 2 }); else tx(l.slice(0, n), 12, SH + 49, Y2) } });
-  { let n = b + 1, tot = 0; SCENES.forEach((s, i) => { if (i < si) n += s.beats.length; tot += s.beats.length }); const sx = sec ? 10 + tw(sec, "P", 2) + 10 + 10 : 12; tx(n + "/" + tot, sx, SH + 12, O1) }
-  if (sc.panel) sc.panel(b, tb, T); else if (left >= 0 && (T * 2 | 0) % 2) tx(">", W - 18, SH + 34, O1) }
+  say.forEach((l, i) => { const n = Math.min(l.length, Math.max(0, left)); left -= l.length; if (n > 0) { if (i === 0) tx(l.slice(0, n), 12, SH + 26, Y2, { s: 2 }); else tx(l.slice(0, n), 12, SH + 45, Y2) } });
+  { let n = b + 1, tot = 0; SCENES.forEach((s, i) => { if (i < si) n += s.beats.length; tot += s.beats.length }); tx(n + "/" + tot, W - 10, SH + 55, O1, { al: "r" }) }
+  if (sc.panel) sc.panel(b, tb, T); else if (left >= 0 && (T * 2 | 0) % 2) tx(">", W - 18, SH + 31, O1) }
 
 /* ---------- wipes ---------- */
 function iris(cx, cy, k) { const r = (1 - k) * 440; c.fillStyle = K; for (let y = 0; y < SH; y++) { const dy = y - cy, dx = Math.abs(dy) < r ? Math.sqrt(r * r - dy * dy) : 0; if (dx <= 0) c.fillRect(0, y, W, 1); else { c.fillRect(0, y, Math.max(0, cx - dx), 1); c.fillRect(cx + dx, y, W, 1) } } }

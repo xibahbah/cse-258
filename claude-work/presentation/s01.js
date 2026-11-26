@@ -101,6 +101,6 @@
   function fore(st) { for (const p of rain) { p.y += p.v; p.x -= 1.2; if (p.y > SH) { p.y = -4; p.x = Math.random() * 720 } R(p.x, p.y, 1, 3, p.y > GY ? "#5a3fb0" : "#c9b8ff") } }
   SCENES.push({ floor: "G", name: "STREET", sec: "CASE 258", w: W, paint, back, live, fore, start: { x: 330, y: 290, s: 1, pose: "b" }, speed: 44, rim: O1,
     exit: { y: 252, s: .56 }, exitWipe: "iris", enterWipe: "fade",
-    panel(b, tb, T) { if (b === 0 && tb > 2.2 && (T * 2 | 0) % 2) tx("> PRESS START", W - 14, SH + 27, Y1, { al: "r" }) },
+    panel(b, tb, T) { if (b === 0 && tb > 2.2 && (T * 2 | 0) % 2) tx("> PRESS START", W - 14, SH + 30, Y1, { al: "r" }) },
     beats: [{ say: [] }, { say: [] }, { say: [] }] });
 })();
