@@ -215,7 +215,7 @@ Third, would harder negatives help? We sampled negatives in proportion to popula
 
 **49** · *VERDICT: PAIRS, NOT THE TOP TEN*
 
-And it's not an implementation issue: the implicit library's BPR scores 0.1386, close to our 0.1498. Our conclusion is that BPR works as designed. It optimizes pairwise order, not top-ten accuracy.
+And it's not an implementation issue: the implicit library's BPR scores 0.1387, close to our 0.1498. Our conclusion is that BPR works as designed. It optimizes pairwise order, not top-ten accuracy.
 
 **50** · *THREE LOCKS ON THE VERDICT*
 
