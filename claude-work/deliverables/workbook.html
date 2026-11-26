@@ -7842,6 +7842,7 @@ a.anchor-link {
 </tr>
 </tbody>
 </table>
+<p><strong>Reproducing this notebook.</strong> Run the cells top to bottom. The data file downloads itself on first run and every random step is seeded (<code>SEED = 42</code>). A full run takes about 48 minutes on a 2-core CPU, most of it in the hand-written ALS and BPR loops, and <code>FAST_MODE = True</code> gives a quick smoke test. Versions used: Python 3.13, NumPy 2.5.3, SciPy 1.18.1, pandas 3.0.5, scikit-learn 1.9.1, matplotlib 3.11.2, implicit 0.7.3. The <code>implicit</code> models are multi-threaded, so their scores can move in the fourth decimal between runs.</p>
 </div>
 </div>
 </div>
@@ -7886,9 +7887,9 @@ a.anchor-link {
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h1 id="2.-Data,-exploratory-analysis,-and-pre-processing">2. Data, exploratory analysis, and pre-processing<a class="anchor-link" href="#2.-Data,-exploratory-analysis,-and-pre-processing">¶</a></h1><p>With the task defined, the next step is the data: where the file comes from, what is wrong with the raw records, which patterns drive the model choices, and how the records become matrices.</p>
-<h2 id="2.1-Context:-where-the-data-comes-from">2.1 Context: where the data comes from<a class="anchor-link" href="#2.1-Context:-where-the-data-comes-from">¶</a></h2><p>The data is the <strong>Australian users and their items</strong> file from the <em>Steam Video Game and Bundle Data</em> collection of the UCSD McAuley Lab (<a href="https://mcauleylab.ucsd.edu/public_datasets/data/datasets.html">dataset page</a>). Pathak, Gupta &amp; McAuley (SIGIR 2017) collected it by crawling public profiles from an Australian Steam community, and their paper reports the same 88,310 users that the loader finds below. Each record is one profile with the games it owns. For every game it gives <code>playtime_forever</code> (total minutes) and <code>playtime_2weeks</code> (minutes in the two weeks before the crawl).</p>
+<h2 id="2.1-Context:-where-the-data-comes-from">2.1 Context: where the data comes from<a class="anchor-link" href="#2.1-Context:-where-the-data-comes-from">¶</a></h2><p>The data is the <strong>Australian users and their items</strong> file from the <em>Steam Video Game and Bundle Data</em> collection of the UCSD McAuley Lab (<a href="https://mcauleylab.ucsd.edu/public_datasets/data/datasets.html">dataset page</a>). Pathak, Gupta &amp; McAuley (SIGIR 2017) collected it by crawling public profiles from an Australian Steam community, and their paper reports 88,310 users, which is the number of lines the loader counts below. Each record is one profile with the games it owns. For every game it gives <code>playtime_forever</code> (total minutes) and <code>playtime_2weeks</code> (minutes in the two weeks before the crawl).</p>
 <p>One detail matters for the loader. Each line is a Python dict literal with single quotes, not strict JSON, so <code>json.loads</code> fails on it. The loader falls back to <code>ast.literal_eval</code>.</p>
-<p>Parsing every profile is slow, and some models need dense game-by-game matrices, so only a random fraction of the players is kept (<code>SAMPLE_FRAC</code>). A seeded generator picks the sample line by line. Taking the first lines of the file would be simpler, but the file may be ordered.</p>
+<p>The hand-written ALS and BPR loops scale with the number of players, and a full run already takes about 48 minutes, so only a random 35% of the players is kept (<code>SAMPLE_FRAC</code>). A seeded generator picks the sample line by line. Taking the first lines of the file would be simpler, but the file may be ordered.</p>
 </div>
 </div>
 </div>
@@ -8023,13 +8024,16 @@ a.anchor-link {
 <span class="n">raw</span><span class="p">[</span><span class="s2">"played"</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">playtime</span> <span class="o">&gt;</span> <span class="n">MIN_PLAYTIME</span>
 <span class="n">raw</span><span class="p">[</span><span class="s2">"recent"</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">playtime_2w</span> <span class="o">&gt;</span> <span class="mi">0</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Parsed in </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">t0</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s | profiles in file: </span><span class="si">{</span><span class="n">n_profiles</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | sampled with empty library: </span><span class="si">{</span><span class="n">n_private</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Parsed in </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">t0</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s | profiles in file: </span><span class="si">{</span><span class="n">n_profiles</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | sampled with empty "</span>
+    <span class="sa">f</span><span class="s2">"library: </span><span class="si">{</span><span class="n">n_private</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Whole file: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seen_uid</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> distinct user ids in </span><span class="si">{</span><span class="n">n_profiles</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> lines (</span><span class="si">{</span><span class="n">n_dup_lines</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> repeated lines; merged by drop_duplicates above)"</span>
+    <span class="sa">f</span><span class="s2">"Whole file: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seen_uid</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> distinct user ids in </span><span class="si">{</span><span class="n">n_profiles</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> lines (</span><span class="si">{</span><span class="n">n_dup_lines</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> "</span>
+    <span class="sa">f</span><span class="s2">"repeated lines; merged by drop_duplicates above)"</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Loaded interactions: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | users: </span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | games: </span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">item_id</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Loaded interactions: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | users: </span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> | games: "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">item_id</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 <span class="n">raw</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
 </pre></div>
@@ -8181,7 +8185,8 @@ Loaded interactions: 1,810,138 | users: 24,793 | games: 10,094
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Owned pairs with zero playtime: </span><span class="si">{</span><span class="p">(</span><span class="o">~</span><span class="n">raw</span><span class="o">.</span><span class="n">played</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Pairs played in the last two weeks: </span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">recent</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2"> | profiles with at least one such game: </span><span class="si">{</span><span class="n">u_recent</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Pairs played in the last two weeks: </span><span class="si">{</span><span class="n">raw</span><span class="o">.</span><span class="n">recent</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2"> | profiles with at least one "</span>
+    <span class="sa">f</span><span class="s2">"such game: </span><span class="si">{</span><span class="n">u_recent</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -8667,10 +8672,11 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>What the plots show.</strong> Ownership is a poor signal of interest. The share of never-played games grows with library size, since large libraries mostly come from bundles and sales, and 36.8% of all owned games in the sample have zero playtime. A positive is therefore a game with playtime above a threshold, not an owned game.</p>
+<p><strong>What the plots show.</strong> Ownership is a poor signal of interest: 36.8% of all owned games in the sample have zero playtime. The bottom-right panel shows that this is not limited to one kind of player. Mid-sized libraries are about 70% played, and the share drops at both ends, to 55% in the smallest decile and 59% in the largest. A positive is therefore a played game (<code>playtime_forever &gt; 0</code>), not an owned game.</p>
+<p>Library sizes and playtimes both span several orders of magnitude (top-left and top-middle panels), which is why the weighted matrix in 2.4 uses $\log(1+\text{hours})$ and not raw hours.</p>
 <p>The audit table in 2.2 says the same thing from the raw records. The most-owned title is a test client that Steam adds automatically, and almost no owner opened it. With ownership as the signal, Popularity would recommend that title to everyone, and the item-based models would learn which free titles come together instead of what players like.</p>
 <p>The rank-frequency plot and the Lorenz curve show a long tail: a small number of games account for most of the play. Popularity will be strong on those games, which is why Section 4 splits its results into head, torso, and tail.</p>
-<p>The last panel compares owners with hours. Many owners does not mean many hours, and free-to-play titles are the clearest case.</p>
+<p>The bottom-middle panel compares owners with hours. The two are almost unrelated (Spearman 0.012), so a game with many owners is not a game with many hours.</p>
 <p>The positive signal is now fixed and the long tail is known. What remains is to clean the data and build the matrices.</p>
 </div>
 </div>
@@ -8894,8 +8900,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">gram</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
-    <span class="c1"># Item-item co-occurrence X^T X, computed with dense BLAS blocks and cached (shared by Item-kNN</span>
-    <span class="c1">#   and EASE).</span>
+    <span class="c1"># Item-item co-occurrence X^T X, computed in dense BLAS blocks and cached.</span>
+    <span class="c1"># Item-kNN and EASE share it.</span>
     <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">X</span><span class="o">.</span><span class="n">nnz</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">_gram_cache</span><span class="p">[</span><span class="s2">"key"</span><span class="p">]</span> <span class="o">!=</span> <span class="n">key</span><span class="p">:</span>
         <span class="n">n</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
@@ -8908,8 +8914,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">scatter_mean_update</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">upd</span><span class="p">,</span> <span class="n">lr</span><span class="p">):</span>
-    <span class="c1"># M[idx] += lr * mean(upd over duplicate idx). Vectorised stand-in for np.add.at; averaging</span>
-    <span class="c1">#   keeps hot items stable.</span>
+    <span class="c1"># M[idx] += lr * mean(upd over duplicate idx).</span>
+    <span class="c1"># Vectorised stand-in for np.add.at; averaging keeps frequently sampled items stable.</span>
     <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">idx</span><span class="p">[</span><span class="n">order</span><span class="p">]</span>
     <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">!=</span> <span class="n">s</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
@@ -8982,8 +8988,9 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ItemKNN</span><span class="p">:</span>
-    <span class="c1"># score(u,j) = sum_{i in I_u} S[i,j],  S[i,j] = co(i,j) / (n_i^alpha * n_j^(1-alpha)),  top-k</span>
-    <span class="c1">#   neighbours per i (alpha=.5 is cosine)</span>
+    <span class="c1"># score(u, j) = sum_{i in I_u} S[i, j]</span>
+    <span class="c1"># S[i, j] = co(i, j) / (n_i^alpha * n_j^(1 - alpha)), top-k neighbours per i</span>
+    <span class="c1"># (alpha = 0.5 is the cosine similarity)</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">k</span><span class="p">,</span> <span class="n">alpha</span>
 
@@ -9070,8 +9077,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ImplicitALS</span><span class="p">:</span>
-    <span class="c1"># Hu-Koren-Volinsky: minimise sum_{u,i} c_ui (p_ui - x_u.y_i)^2 + reg(|x|^2+|y|^2), c_ui = 1 +</span>
-    <span class="c1">#   alpha*r_ui, p_ui = 1[observed]</span>
+    <span class="c1"># Hu, Koren &amp; Volinsky (2008): minimise sum_{u,i} c_ui (p_ui - x_u.y_i)^2 + reg (|x|^2 + |y|^2)</span>
+    <span class="c1"># with confidence c_ui = 1 + alpha * r_ui and preference p_ui = 1[observed]</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">weighted</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">iters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weighted</span> <span class="o">=</span> <span class="n">f</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="n">iters</span><span class="p">,</span> <span class="n">weighted</span>
 
@@ -9113,7 +9120,7 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>BPR-MF.</strong> Each step takes a batch of played pairs $(u, i)$ and draws a random game $j$ for each, redrawing if the player has played $j$. The factors then move so that $i$ ranks above $j$. The step size is $\sigma(-x)$, where $x$ is the score difference, so a pair that is already in the right order changes almost nothing.</p>
+<p><strong>BPR-MF.</strong> Each step takes a batch of played pairs $(u, i)$ and draws a random game $j$ for each, redrawing once if the player has played $j$. The factors then move so that $i$ ranks above $j$. The step size is $\sigma(-x)$, where $x$ is the score difference, so a pair that is already in the right order changes almost nothing.</p>
 </div>
 </div>
 </div>
@@ -9126,18 +9133,13 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">BPRMF</span><span class="p">:</span>
-    <span class="c1"># neg_pow = 0 samples negatives uniformly (standard BPR); neg_pow &gt; 0 samples them in proportion</span>
-    <span class="c1">#   to popularity**neg_pow (used only in the 4.2 diagnosis).</span>
-    <span class="c1"># history records, per epoch, the mean gradient weight sigma(-x) and the share of sampled pairs</span>
-    <span class="c1">#   already ordered correctly.</span>
+    <span class="c1"># neg_pow = 0 samples negatives uniformly (standard BPR).</span>
+    <span class="c1"># neg_pow &gt; 0 samples them in proportion to popularity**neg_pow (only in the 4.2 diagnosis).</span>
+    <span class="c1"># history records, per epoch, the mean gradient weight sigma(-x) and the share of sampled</span>
+    <span class="c1"># pairs that are already ordered correctly.</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">batch</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span> <span class="n">neg_pow</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">neg_pow</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">f</span><span class="p">,</span>
-            <span class="n">lr</span><span class="p">,</span>
-            <span class="n">reg</span><span class="p">,</span>
-            <span class="n">epochs</span><span class="p">,</span>
-            <span class="n">batch</span><span class="p">,</span>
-            <span class="n">neg_pow</span><span class="p">,</span>
+            <span class="n">f</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="n">epochs</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">neg_pow</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">W</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -9164,9 +9166,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
                 <span class="n">sel</span> <span class="o">=</span> <span class="n">perm</span><span class="p">[</span><span class="n">s</span> <span class="p">:</span> <span class="n">s</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch</span><span class="p">]</span>
                 <span class="n">u</span><span class="p">,</span> <span class="n">i</span> <span class="o">=</span> <span class="n">us</span><span class="p">[</span><span class="n">sel</span><span class="p">],</span> <span class="n">its</span><span class="p">[</span><span class="n">sel</span><span class="p">]</span>
                 <span class="n">j</span> <span class="o">=</span> <span class="n">draw</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sel</span><span class="p">))</span>
-                <span class="n">bad</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Xc</span><span class="p">[</span><span class="n">u</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span>
-                <span class="p">)</span>  <span class="c1"># resample negatives that are actually positives</span>
+                <span class="c1"># a sampled "negative" the user has played is redrawn once</span>
+                <span class="n">bad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Xc</span><span class="p">[</span><span class="n">u</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span>
                 <span class="k">if</span> <span class="n">bad</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
                     <span class="n">j</span><span class="p">[</span><span class="n">bad</span><span class="p">]</span> <span class="o">=</span> <span class="n">draw</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">bad</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
                 <span class="n">pu</span><span class="p">,</span> <span class="n">qi</span><span class="p">,</span> <span class="n">qj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span><span class="p">[</span><span class="n">u</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">Q</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
@@ -9207,7 +9208,7 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <li>Build the game-by-game co-play matrix.</li>
 <li>Add $\lambda$ to the diagonal.</li>
 <li>Invert the matrix once.</li>
-<li>Divide each column by its diagonal value.</li>
+<li>Divide each column by its diagonal value and flip the sign.</li>
 <li>Zero the diagonal, so a game cannot recommend itself.</li>
 </ol>
 </div>
@@ -9222,8 +9223,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">EASE</span><span class="p">:</span>
-    <span class="c1"># Steck (2019): B = argmin ||X - XB||^2 + lam||B||^2  s.t. diag(B)=0  -&gt;  B_ij = -P_ij / P_jj, P</span>
-    <span class="c1">#   = (X^T X + lam I)^-1</span>
+    <span class="c1"># Steck (2019): B = argmin ||X - XB||^2 + lam ||B||^2  subject to diag(B) = 0</span>
+    <span class="c1"># Closed form: B_ij = -P_ij / P_jj with P = (X^T X + lam I)^-1</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="mf">500.0</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">=</span> <span class="n">lam</span>
 
@@ -9275,9 +9276,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
         <span class="n">r</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">X_seen</span><span class="p">[</span><span class="n">ub</span><span class="p">]</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
         <span class="n">sc</span><span class="p">[</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>  <span class="c1"># remove already-owned games</span>
         <span class="n">t</span> <span class="o">=</span> <span class="n">sc</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ub</span><span class="p">)),</span> <span class="n">targets</span><span class="p">[</span><span class="n">ub</span><span class="p">]][:,</span> <span class="kc">None</span><span class="p">]</span>
-        <span class="n">ranks</span><span class="p">[</span><span class="n">s</span> <span class="p">:</span> <span class="n">s</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">ub</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span><span class="n">sc</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">sc</span> <span class="o">==</span> <span class="n">t</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
-            <span class="mi">1</span>
-        <span class="p">)</span>  <span class="c1"># = 1 + #strictly-better + #ties</span>
+        <span class="c1"># pessimistic rank = 1 + #strictly-better + #ties (the target ties with itself)</span>
+        <span class="n">ranks</span><span class="p">[</span><span class="n">s</span> <span class="p">:</span> <span class="n">s</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">ub</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span><span class="n">sc</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">sc</span> <span class="o">==</span> <span class="n">t</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">ranks</span>
 
 
@@ -9362,25 +9362,19 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <span class="n">seen</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span>
     <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
         <span class="p">[</span>
-            <span class="p">[</span>
-                <span class="mi">1</span><span class="p">,</span>
-                <span class="mi">0</span><span class="p">,</span>
-                <span class="mi">0</span><span class="p">,</span>
-                <span class="mi">0</span><span class="p">,</span>
-                <span class="mi">0</span><span class="p">,</span>
-            <span class="p">],</span>  <span class="c1"># user 0 already has game 0 (the top-scored one): it must be masked out</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 0 already has game 0 (the top-scored one): must be masked</span>
             <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 1: three-way tie that includes the target</span>
             <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 2: target has the highest score</span>
-            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 3: target has the lowest score among 3 unseen games</span>
         <span class="p">]</span>
     <span class="p">)</span>
-<span class="p">)</span>  <span class="c1"># user 3: target has the lowest score among 3 unseen games</span>
+<span class="p">)</span>
 <span class="n">S</span> <span class="o">=</span> <span class="p">[</span>
     <span class="p">[</span><span class="mi">9</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># user 0, target 1: unseen scores 5,7,1,3 -&gt; one game (7) is above -&gt; rank 2</span>
     <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 1, target 0: ties count against the model -&gt; rank 3</span>
     <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># user 2, target 2: rank 1</span>
-    <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
-<span class="p">]</span>  <span class="c1"># user 3, target 4: unseen scores 5,1,0 -&gt; rank 3</span>
+    <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># user 3, target 4: unseen scores 5,1,0 -&gt; rank 3</span>
+<span class="p">]</span>
 <span class="n">tg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
 <span class="n">uu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
 <span class="n">rk</span> <span class="o">=</span> <span class="n">rank_of_targets</span><span class="p">(</span><span class="n">_Fixed</span><span class="p">(</span><span class="n">S</span><span class="p">),</span> <span class="n">seen</span><span class="p">,</span> <span class="n">tg</span><span class="p">,</span> <span class="n">uu</span><span class="p">)</span>
@@ -9388,13 +9382,14 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 
 <span class="n">m</span> <span class="o">=</span> <span class="n">metrics_from_ranks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">]),</span> <span class="n">K</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"HR"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"NDCG"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="mi">0</span><span class="p">])</span>
-<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"MRR"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">11</span><span class="p">])</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span>
-    <span class="n">m</span><span class="p">[</span><span class="s2">"AUC"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">10</span> <span class="o">/</span> <span class="mi">99</span><span class="p">]</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"MRR"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">11</span><span class="p">])</span>
+    <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"AUC"</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">10</span> <span class="o">/</span> <span class="mi">99</span><span class="p">])</span>
 <span class="p">)</span>
 
 
-<span class="c1"># an oracle that scores the hidden game highest must be perfect; one that scores it lowest must be</span>
-<span class="c1">#   at the bottom</span>
+<span class="c1"># an oracle that scores the hidden game highest must be perfect,</span>
+<span class="c1"># and one that scores it lowest must land at the bottom</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">_Oracle</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sign</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sign</span> <span class="o">=</span> <span class="n">sign</span>
@@ -9415,11 +9410,11 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
     <span class="ow">and</span> <span class="n">X_train</span><span class="p">[</span><span class="n">all_users</span><span class="p">,</span> <span class="n">test_item</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
     <span class="ow">and</span> <span class="n">X_trval</span><span class="p">[</span><span class="n">all_users</span><span class="p">,</span> <span class="n">test_item</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
 <span class="p">)</span>
-<span class="k">assert</span> <span class="p">(</span>
-    <span class="n">X_trval</span><span class="p">[</span><span class="n">all_users</span><span class="p">,</span> <span class="n">val_item</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="n">n_users</span>
-<span class="p">)</span>  <span class="c1"># validation games do return for the final refit</span>
+<span class="c1"># validation games do return for the final refit</span>
+<span class="k">assert</span> <span class="n">X_trval</span><span class="p">[</span><span class="n">all_users</span><span class="p">,</span> <span class="n">val_item</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="n">n_users</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="s2">"All evaluation and split checks passed: masking, ties, best/worst rank, metric formulas, no train/test overlap."</span>
+    <span class="s2">"All evaluation and split checks passed: masking, ties, best/worst rank, metric formulas, "</span>
+    <span class="s2">"no train/test overlap."</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -9511,7 +9506,8 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
     <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"BPR-MF"</span><span class="p">:</span>
         <span class="n">bpr_history</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s2">"params"</span><span class="p">]]</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">history</span>
     <span class="nb">print</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">25s</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'params'</span><span class="p">]</span><span class="si">:</span><span class="s2">28s</span><span class="si">}</span><span class="s2"> NDCG@10=</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'val NDCG@10'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'fit+eval s'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s)"</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">25s</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'params'</span><span class="p">]</span><span class="si">:</span><span class="s2">28s</span><span class="si">}</span><span class="s2"> NDCG@10=</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'val NDCG@10'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  "</span>
+        <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'fit+eval s'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s)"</span>
     <span class="p">)</span>
 
 
@@ -9526,17 +9522,16 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
     <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="s2">"val NDCG@10"</span><span class="p">])[</span><span class="s2">"_p"</span><span class="p">]</span>
 
 
-<span class="n">search</span><span class="p">(</span>
-    <span class="s2">"Item-kNN"</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="n">n_items</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">]</span>
-<span class="p">)</span>  <span class="c1"># k = n_items means "no truncation"</span>
+<span class="c1"># k = n_items means "no truncation"</span>
+<span class="n">search</span><span class="p">(</span><span class="s2">"Item-kNN"</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="n">n_items</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">])</span>
 <span class="n">search</span><span class="p">(</span><span class="s2">"PureSVD"</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
 <span class="n">search</span><span class="p">(</span><span class="s2">"EASE"</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">300.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="mf">3000.0</span><span class="p">])</span>
 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">alphas</span> <span class="ow">in</span> <span class="p">[(</span><span class="s2">"ALS (binary)"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">]),</span> <span class="p">(</span><span class="s2">"ALS (playtime-weighted)"</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">])]:</span>
-    <span class="n">search</span><span class="p">(</span>
-        <span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">64</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alphas</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="p">[</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">80.0</span><span class="p">,</span> <span class="mf">300.0</span><span class="p">]</span>
-    <span class="p">)</span>  <span class="c1"># stage 1: confidence x regularization</span>
+    <span class="c1"># stage 1: confidence x regularization at f = 64</span>
+    <span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">64</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alphas</span><span class="p">,</span> <span class="n">reg</span><span class="o">=</span><span class="p">[</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">80.0</span><span class="p">,</span> <span class="mf">300.0</span><span class="p">])</span>
+    <span class="c1"># stage 2: number of factors at the best (alpha, reg)</span>
     <span class="n">b</span> <span class="o">=</span> <span class="n">best_of</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-    <span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">128</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="s2">"alpha"</span><span class="p">]],</span> <span class="n">reg</span><span class="o">=</span><span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="s2">"reg"</span><span class="p">]])</span>  <span class="c1"># stage 2: factors</span>
+    <span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">128</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="s2">"alpha"</span><span class="p">]],</span> <span class="n">reg</span><span class="o">=</span><span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="s2">"reg"</span><span class="p">]])</span>
 <span class="n">search</span><span class="p">(</span><span class="s2">"BPR-MF"</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">],</span> <span class="n">lr</span><span class="o">=</span><span class="p">[</span><span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">])</span>
 
 <span class="n">tuning_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">tuning_rows</span><span class="p">)</span>
@@ -9937,8 +9932,8 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 <div class="jp-InputPrompt jp-InputArea-prompt">In [16]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Is each selected value interior to what we tried, or on an edge? (An edge is acceptable only where</span>
-<span class="c1">#   the curve is flat.)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Is each selected value interior to the range tried, or on an edge?</span>
+<span class="c1"># (An edge is acceptable only where the curve is flat.)</span>
 <span class="n">edge_rows</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">TUNED</span><span class="p">:</span>
     <span class="n">sub</span> <span class="o">=</span> <span class="n">tuning_df</span><span class="p">[</span><span class="n">tuning_df</span><span class="o">.</span><span class="n">model</span> <span class="o">==</span> <span class="n">name</span><span class="p">]</span>
@@ -10245,7 +10240,8 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
     <span class="p">)</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"For reference, Popularity on the same validation users: NDCG@10 = </span><span class="si">{</span><span class="n">pop_nd</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, AUC = </span><span class="si">{</span><span class="n">pop_au</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"For reference, Popularity on the same validation users: NDCG@10 = </span><span class="si">{</span><span class="n">pop_nd</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, AUC = "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pop_au</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -10312,7 +10308,7 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>What the diagnosis shows.</strong> Training is not the problem. The gradient weight and the share of correctly ordered pairs flatten long before the last epoch.</p>
+<p><strong>What the diagnosis shows.</strong> More training is unlikely to be the answer. The share of correctly ordered pairs gains less than two points over the last ten epochs (from about 94.6% to 96.3%), although the gradient weight is still falling slowly at epoch 20. The reference BPR in Section 4.4 also prefers 30 iterations to 60 in its own validation search.</p>
 <p>BPR reaches its own objective. At the last epoch it orders 96.3% of sampled (played, random unplayed) pairs correctly, and its validation AUC is 0.9485 against 0.9084 for Popularity. Its NDCG@10 is still only 0.1421, against 0.1118 for Popularity. The model does what it optimizes, which is to put played games above most of the catalog. A top-ten list depends on the few dozen strongest candidates, and a random negative is almost never one of them.</p>
 <p>Harder negatives make it worse. With negatives sampled in proportion to popularity$^{0.75}$, validation NDCG@10 drops from 0.1421 to 0.0784. Under a random holdout the hidden game is usually popular, so a sampler that penalizes popular games penalizes the right answers.</p>
 <p>BPR's result therefore comes from its objective on a long-tailed catalog, not from our implementation, and Section 4.4 backs that up with a reference library. With every model tuned, the test games come next.</p>
@@ -10960,9 +10956,8 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">fit_and_score</span><span class="p">(</span><span class="n">trval_df</span><span class="p">,</span> <span class="n">test_df</span><span class="p">,</span> <span class="n">eval_users</span><span class="p">):</span>
-    <span class="n">_gram_cache</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-        <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">G</span><span class="o">=</span><span class="kc">None</span>
-    <span class="p">)</span>  <span class="c1"># new matrices can reuse an old object's id and nnz: never reuse the Gram matrix</span>
+    <span class="c1"># a new matrix can reuse an old object's id and nnz, so the cached Gram matrix is dropped</span>
+    <span class="n">_gram_cache</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">G</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
     <span class="n">Xb</span><span class="p">,</span> <span class="n">Wb</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">trval_df</span><span class="p">),</span> <span class="n">build</span><span class="p">(</span><span class="n">trval_df</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
     <span class="n">tgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_users</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
     <span class="n">tgt</span><span class="p">[</span><span class="n">test_df</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">values</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_df</span><span class="o">.</span><span class="n">i</span><span class="o">.</span><span class="n">values</span>
@@ -10970,9 +10965,9 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
     <span class="n">res</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">MODEL_ORDER</span><span class="p">:</span>
         <span class="n">m</span> <span class="o">=</span> <span class="n">FACTORY</span><span class="p">[</span><span class="n">name</span><span class="p">](</span><span class="o">**</span><span class="n">best_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">{}))</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Xb</span><span class="p">,</span> <span class="n">Wb</span><span class="p">)</span>
-        <span class="n">res</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics_from_ranks</span><span class="p">(</span><span class="n">rank_of_targets</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">Xb</span><span class="p">,</span> <span class="n">tgt</span><span class="p">,</span> <span class="n">eval_users</span><span class="p">),</span> <span class="n">ncand</span><span class="p">[</span><span class="n">eval_users</span><span class="p">])[</span>
-            <span class="s2">"NDCG"</span>
-        <span class="p">]</span>
+        <span class="n">res</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics_from_ranks</span><span class="p">(</span>
+            <span class="n">rank_of_targets</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">Xb</span><span class="p">,</span> <span class="n">tgt</span><span class="p">,</span> <span class="n">eval_users</span><span class="p">),</span> <span class="n">ncand</span><span class="p">[</span><span class="n">eval_users</span><span class="p">]</span>
+        <span class="p">)[</span><span class="s2">"NDCG"</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">res</span>
 
 
@@ -10999,7 +10994,8 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
     <span class="o">.</span><span class="n">set_caption</span><span class="p">(</span><span class="s2">"Test NDCG@10 under independent re-draws of the per-user split"</span><span class="p">)</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Same winner (</span><span class="si">{</span><span class="n">best_now</span><span class="si">}</span><span class="s2">) on every split: </span><span class="si">{</span><span class="n">same_winner</span><span class="si">}</span><span class="s2"> | smallest winning margin on any split: </span><span class="si">{</span><span class="n">min_margin</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> | full ordering identical: </span><span class="si">{</span><span class="n">same_order</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Same winner (</span><span class="si">{</span><span class="n">best_now</span><span class="si">}</span><span class="s2">) on every split: </span><span class="si">{</span><span class="n">same_winner</span><span class="si">}</span><span class="s2"> | smallest winning margin on any "</span>
+    <span class="sa">f</span><span class="s2">"split: </span><span class="si">{</span><span class="n">min_margin</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> | full ordering identical: </span><span class="si">{</span><span class="n">same_order</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 <span class="k">if</span> <span class="ow">not</span> <span class="n">same_order</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">orders</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -11027,16 +11023,20 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 <span class="n">tgt_rec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_users</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
 <span class="n">tgt_rec</span><span class="p">[</span><span class="n">test_rec</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">values</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_rec</span><span class="o">.</span><span class="n">i</span><span class="o">.</span><span class="n">values</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Users with a recently played game in the filtered data: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">eval_rec</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">n_users</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">eval_rec</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n_users</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2">)"</span>
+    <span class="sa">f</span><span class="s2">"Users with a recently played game in the filtered data: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">eval_rec</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">n_users</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> "</span>
+    <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">eval_rec</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n_users</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2">)"</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"Hidden game is one of the 100 most-played titles: random holdout </span><span class="si">{</span><span class="n">head100</span><span class="p">[</span><span class="n">test_item</span><span class="p">[</span><span class="n">eval_rec</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2"> | recent holdout </span><span class="si">{</span><span class="n">head100</span><span class="p">[</span><span class="n">tgt_rec</span><span class="p">[</span><span class="n">eval_rec</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Hidden game is one of the 100 most-played titles: random holdout "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">head100</span><span class="p">[</span><span class="n">test_item</span><span class="p">[</span><span class="n">eval_rec</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2"> | recent holdout "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">head100</span><span class="p">[</span><span class="n">tgt_rec</span><span class="p">[</span><span class="n">eval_rec</span><span class="p">]]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.0%</span><span class="si">}</span><span class="s2">"</span>
 <span class="p">)</span>
 <span class="n">order_rand</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">recent_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
 <span class="n">order_rec</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">recent_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
 <span class="n">gain</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">col</span><span class="p">:</span> <span class="n">recent_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">best_now</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">/</span> <span class="n">recent_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s2">"Popularity"</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
 <span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">best_now</span><span class="si">}</span><span class="s2"> over Popularity: </span><span class="si">{</span><span class="n">gain</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">+.0%</span><span class="si">}</span><span class="s2"> with a random hidden game | </span><span class="si">{</span><span class="n">gain</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s2">+.0%</span><span class="si">}</span><span class="s2"> with a recently played hidden game"</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">best_now</span><span class="si">}</span><span class="s2"> over Popularity: </span><span class="si">{</span><span class="n">gain</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">+.0%</span><span class="si">}</span><span class="s2"> with a random hidden game | </span><span class="si">{</span><span class="n">gain</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s2">+.0%</span><span class="si">}</span><span class="s2"> "</span>
+    <span class="sa">f</span><span class="s2">"with a recently played hidden game"</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Ordering under random holdout :"</span><span class="p">,</span> <span class="s2">" &gt; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">order_rand</span><span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Ordering under recent holdout :"</span><span class="p">,</span> <span class="s2">" &gt; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">order_rec</span><span class="p">))</span>
@@ -11326,7 +11326,7 @@ Ordering under recent holdout : EASE &gt; ALS (playtime-weighted) &gt; ALS (bina
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.5-Error-analysis:-where-does-each-model-win?">4.5 Error analysis: where does each model win?<a class="anchor-link" href="#4.5-Error-analysis:-where-does-each-model-win?">¶</a></h2><p>An average over all players can hide large differences: personalization may help only some players or only some games. The test results are therefore broken down by how many games the player has and by how popular the hidden game is. Popularity wins on head games by construction. The real question is whether the personalized models help in the torso and the tail.</p>
+<h2 id="4.5-Error-analysis:-where-does-each-model-win?">4.5 Error analysis: where does each model win?<a class="anchor-link" href="#4.5-Error-analysis:-where-does-each-model-win?">¶</a></h2><p>An average over all players can hide large differences: personalization may help only some players or only some games. The test results are therefore broken down by how many games the player has and by how popular the hidden game is. Popularity can only score on head games, because it recommends the same few titles to everyone. The questions are whether the personalized models beat it there too, and whether they reach the torso and the tail.</p>
 </div>
 </div>
 </div>
@@ -11421,6 +11421,18 @@ Share of test games per popularity bucket:
  {'head (top 100)': 0.452, 'torso (101-1000)': 0.448, 'tail (1000+)': 0.1}
 </pre>
 </div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<p><strong>Reading the breakdown.</strong> EASE leads in every library-size bucket, from 0.297 against 0.177 for Popularity among players with fewer than ten games to 0.156 against 0.061 among players with a hundred or more. That is validity check 3 from Section 1. Every model scores lower as libraries grow. A likely reason is that players with large libraries have already played the popular games, so their hidden game is harder to guess.</p>
+<p>By popularity of the hidden game, Popularity scores 0.258 on head games and zero elsewhere. EASE beats it on the head (0.377), is the only model above 0.1 in the torso (0.117), and has the best tail score (0.021). BPR is no better than Popularity on head games (0.256) and gets its gain from the torso (0.074), which fits the diagnosis in 4.2: it orders the catalog well but is weak at the very top.</p>
 </div>
 </div>
 </div>
@@ -11736,8 +11748,8 @@ Share of test games per popularity bucket:
 <div class="jp-InputPrompt jp-InputArea-prompt">In [25]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Case study: one real user (&gt;= 30 played games whose held-out game the best model ranks in the top</span>
-<span class="c1">#   10, if any)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Case study: one real user with &gt;= 30 played games whose held-out game</span>
+<span class="c1"># the best model ranks in the top 10 (if such a user exists)</span>
 <span class="n">cands</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">((</span><span class="n">ucount</span> <span class="o">&gt;=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">per_user</span><span class="p">[</span><span class="n">best</span><span class="p">][</span><span class="s2">"rank"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">TOP_K</span><span class="p">))</span>
 <span class="n">u</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cands</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cands</span><span class="p">)</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">ucount</span><span class="p">))</span>
 <span class="n">history</span> <span class="o">=</span> <span class="n">trval</span><span class="p">[</span><span class="n">trval</span><span class="o">.</span><span class="n">u</span> <span class="o">==</span> <span class="n">u</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"hours"</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -11930,7 +11942,7 @@ EASE  (held-out game ranked #1 of 3199)
 <p>Three further results qualify the headline:</p>
 <ol>
 <li><strong>BPR's weak top-ten score has an explanation.</strong> It has the best AUC of any model because AUC is what it optimizes, and its top-ten score is near Item-kNN's.</li>
-<li><strong>Accuracy and discovery are different things.</strong> Popularity uses 1.9% of the catalog, EASE 31.0%, ALS 17.5%, and BPR 36.1% (at much lower accuracy). The personalized models earn their advantage on torso and tail games, where Popularity scores nothing.</li>
+<li><strong>Accuracy and discovery are different things.</strong> Popularity uses 1.9% of the catalog, EASE 31.0%, ALS 17.5%, and BPR 36.1% (at much lower accuracy). EASE beats Popularity on head games as well (0.377 against 0.258), and Popularity scores nothing in the torso and tail.</li>
 <li><strong>The task definition matters as much as the model.</strong> With a recently played hidden game, the gain from personalization shrinks and playtime weights become useful.</li>
 </ol>
 <p>The claim this notebook defends is the order EASE &gt; ALS &gt; the other models on top-ten metrics. It held under a second implementation, four splits, and a different hidden game. The absolute value of any number is not defended, because it depends on the holdout. Nothing is claimed about a player's next game, because the data has no timestamps.</p>
@@ -11939,6 +11951,7 @@ EASE  (held-out game ranked #1 of 3199)
 <li><strong>Random split, not temporal.</strong> Without timestamps, a model can see a player's "future" games during training. Check 3 shows how far the results move under a different holdout, but it is a stress test, not a temporal evaluation.</li>
 <li><strong>Settings tuned on one split.</strong> The new splits in Section 4.4 reuse the settings from the main split, and each model has a single initialization seed. Split noise is measured. Tuning noise is not.</li>
 <li><strong>Unequal search effort.</strong> The ALS and BPR searches stop at 128 factors because our NumPy implementations are slow beyond that. The library check bounds what ALS could still gain. BPR was not tested at larger sizes.</li>
+<li><strong>Positive threshold.</strong> Any game with more than zero minutes counts as played. A stricter threshold, such as one hour, was not tested and could change the results, as the playtime-weight flip in Check 3 suggests.</li>
 <li><strong>Sample.</strong> Results are for a random <code>SAMPLE_FRAC</code> of the players and for the catalog after the k-core filter. Games below <code>MIN_ITEM_USERS</code> and new players are out of scope.</li>
 <li><strong>Popularity bias in the evaluation.</strong> A random holdout favors popular games as targets, which is why results are reported separately for head, torso, and tail.</li>
 <li><strong>Scale.</strong> EASE and the dense Item-kNN Gram matrix need $O(I^2)$ memory and will not scale to millions of games.</li>
