@@ -53,7 +53,7 @@
       if (k >= 1) { const low = cb[2] < 50; plate([cb[0], fmt(cb[1]) + " OWN", cb[2] + "% PLAYED"], x + CW / 2, top - 40, Y2, { al: "c", bd: low ? R1 : DM, cols: [Y2, GL, low ? M3 : G2], f: "P" }) } });
     if (st.b === 2 && st.A(2, .3, 2) >= 1) plate(["HEIGHT = OWNERS", "LIT = PLAYED"], 566, 196, GL, { cols: [GL, Y1] });
     if (st.b >= 3) { const k = st.A(3, .9, .2); tx((36.8 * ez(k)).toFixed(1) + "%", 566, 62, R1, { s: 3, ol: K }); if (k >= 1) { plate(["OF OWNED GAMES", "NEVER PLAYED"], 566, 92, Y2); plate(["A POSITIVE =", "PLAYTIME > 0"], 566, 128, Y1, { bd: G2 }) } }
-    if (st.b >= 4) { plate(["BIG LIBRARIES LEAVE", "MORE UNPLAYED"], 566, 168, GL); plate(["OWNERS vs HOURS:", "RANK CORR 0.01"], 566, 200, GL) }
+    if (st.b >= 4) { plate(["MID-SIZE LIBRARIES:", "MOST PLAYED (70%)"], 566, 168, GL); plate(["OWNERS vs HOURS:", "RANK CORR 0.01"], 566, 200, GL) }
   }
   SCENES.push({ floor: "12", name: "ARCHIVE", sec: "DATA", w: SW, paint, live, start: { x: -20, y: 291, s: .8, pose: "s" }, rim: B2, clue: 3, clueText: "OWNED IS NOT PLAYED", clueY: "b",
     exit: { x: 1228, y: 250, s: .5 }, exitWipe: "iris", enterWipe: "doors",
@@ -62,5 +62,5 @@
       { foc: [500, 148, 112, 82], x: 596, say: ["FIRST SURPRISE: 684 PLAYERS ARE FILED TWICE.", "LEFT IN, ONE COPY'S HIDDEN GAME SITS IN THE OTHER COPY'S TRAINING ROW.", "THAT IS A LEAK. WE MERGE THEM: 87,626 PLAYERS."] },
       { foc: [932, 124, 290, 134], x: 640, cam: 560, say: ["FIVE MOST-OWNED GAMES. CABINET HEIGHT = OWNERS. LIT DRAWERS = EVER PLAYED.", "DOTA 2 TEST: 17,249 OWNERS, 7% PLAYED. LEFT 4 DEAD 2 BETA: 4%.", "STEAM DROPS TEST CLIENTS INTO LIBRARIES. NOBODY OPENS THEM."] },
       { foc: [626, 106, 92, 64], x: 640, cam: 560, say: ["ACROSS THE WHOLE FILE, 36.8% OF OWNED GAMES HAVE ZERO MINUTES.", "SO A POSITIVE IS PLAYTIME > 0, NOT OWNERSHIP.", "OTHERWISE POPULARITY RECOMMENDS A TEST CLIENT TO EVERYONE."] },
-      { foc: [640, 200, 104, 46], x: 640, cam: 560, clue: true, clueDelay: .5, say: ["TWO MORE NOTES. BIG LIBRARIES LEAVE MORE UNPLAYED.", "OWNER COUNT SAYS ALMOST NOTHING ABOUT HOURS PLAYED: RANK CORRELATION 0.01.", "ONE MORE THING ABOUT POPULARITY. IT IS UPSTAIRS, AND IT IS LOUD."] }] });
+      { foc: [640, 200, 104, 46], x: 640, cam: 560, clue: true, clueDelay: .5, say: ["TWO MORE NOTES. MID-SIZED LIBRARIES ARE THE MOST PLAYED.", "OWNER COUNT SAYS ALMOST NOTHING ABOUT HOURS PLAYED: RANK CORRELATION 0.01.", "ONE MORE THING ABOUT POPULARITY. IT IS UPSTAIRS, AND IT IS LOUD."] }] });
 })();

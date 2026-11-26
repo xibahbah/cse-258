@@ -4,7 +4,7 @@
   const M = [
     { n: "POPULARITY", p: "NO SETTINGS", o: ["COUNT THE PLAYERS.", "NOTHING IS LEARNED"], t: "BASELINE", knobs: [] },
     { n: "ITEM-KNN", p: "k=3570 a=0.5", o: ["COSINE BETWEEN", "GAME AUDIENCES"], t: "COURSE", knobs: [["k", 0], ["a", 1]] },
-    { n: "PURESVD", p: "f=12", o: ["RANK-12 REBUILD OF", "THE 0/1 MATRIX"], t: "CONTRAST", knobs: [["f", 1]] },
+    { n: "PURESVD", p: "f=12", o: ["RANK-12 REBUILD OF", "THE 0/1 MATRIX"], t: "COURSE CONCEPT", knobs: [["f", 1]] },
     { n: "ALS BINARY", p: "f=128 a=3 reg=80", o: ["WEIGHTED SQ. ERROR", "ON EVERY CELL"], t: "COURSE", knobs: [["f", 0], ["a", 1], ["reg", 1]] },
     { n: "ALS PLAYTIME", p: "f=128 a=1 reg=80", o: ["SAME, WEIGHTED BY", "LOG(1 + HOURS)"], t: "COURSE", knobs: [["f", 0], ["a", 1], ["reg", 1]] },
     { n: "BPR-MF", p: "f=128 lr=0.05", o: ["PLAYED GAME BEATS", "A RANDOM UNPLAYED"], t: "COURSE", knobs: [["f", 0], ["lr", 1]] },

@@ -18,7 +18,7 @@
     /* red string from the suspect's photo to each exhibit */
     const px = 320, py = 180; for (let i = 0; i < 3; i++) if (st.A(i + 1, .4) >= 1) seg(CARD[i][0] + CWd / 2, CARD[i][1] + CHt - 4, px, py - 6, R1);
     card(0, st.A(1, .4), "1 UNDER-TRAINED?", (x, y) => { R(x + 14, y + 24, 1, 56, INKC); R(x + 14, y + 80, 130, 1, INKC); let py2 = 0; for (let q = 0; q < 124; q++) { const v = Math.exp(-q / 16) * .82 + .1, yy = y + 80 - Math.round(v * 52); R(x + 16 + q, yy, 2, 2, R1) }
-      tx("epoch", x + 100, y + 84, INKC, { f: "T" }); tx("learning signal", x + 20, y + 22, INKC, { f: "T" }); tx("FLAT AFTER A FEW", x + 8, y + 96, INKC); tx("EPOCHS", x + 8, y + 107, INKC); stamp(x + 98, y + 112, "NO", R1) });
+      tx("epoch", x + 100, y + 84, INKC, { f: "T" }); tx("learning signal", x + 20, y + 22, INKC, { f: "T" }); tx("LAST 10 EPOCHS:", x + 8, y + 96, INKC); tx("UNDER +2 PTS", x + 8, y + 107, INKC); stamp(x + 98, y + 112, "NO", R1) });
     card(1, st.A(2, .4), "2 WRONG TARGET?", (x, y) => { const n = Math.round(963 * st.A(2, 1.2, .5) / 10); for (let q = 0; q < 100; q++) { const cx = x + 10 + (q % 20) * 7, cy = y + 20 + (q / 20 | 0) * 7; if (q < n) R(cx, cy, 5, 5, INKC); else { R(cx, cy, 5, 5, R1); R(cx + 1, cy + 1, 3, 3, PAPER) } }
       tx("96.3% OF PAIRS", x + 8, y + 60, INKC); tx("ALREADY IN ORDER", x + 8, y + 71, INKC); tx("AUC      0.949", x + 8, y + 86, INKC); tx("NDCG@10  0.142", x + 8, y + 97, R1); stamp(x + 90, y + 112, "YES", "#0e6a4a") });
     card(2, st.A(3, .4), "3 HARD NEGATIVES?", (x, y) => { const k = st.A(3, .9, .5), h0 = Math.round(142 * .34), h1 = Math.round(lerp(142, 78, ez(k)) * .34), hp = Math.round(112 * .34); R(x + 12, y + 80, 136, 1, INKC);
@@ -37,7 +37,7 @@
     exit: { x: 670 }, exitWipe: "iris", enterWipe: "iris",
     beats: [
       { foc: [320, 200, 132, 52], x: 150, say: ["FLOOR 41. INTERROGATION. THE SUSPECT: BPR-MF.", "BEST AUC IN THE BUILDING. SIXTH OF SEVEN WHERE IT COUNTS. THREE QUESTIONS."] },
-      { foc: [150, 88, 94, 80], say: ["QUESTION 1: DID WE STOP TRAINING TOO EARLY?", "NO. THE LEARNING SIGNAL SHRINKS AND GOES FLAT WITHIN A FEW EPOCHS.", "MORE EPOCHS BUY NOTHING."] },
+      { foc: [150, 88, 94, 80], say: ["QUESTION 1: DID WE STOP TRAINING TOO EARLY?", "UNLIKELY. OVER THE LAST TEN EPOCHS, PAIRS IN THE RIGHT ORDER RISE", "BY LESS THAN TWO POINTS."] },
       { foc: [320, 88, 94, 80], say: ["QUESTION 2: IS IT OPTIMIZING THE WRONG THING?", "YES. BY THE END, 96.3% OF SAMPLED PAIRS ARE ALREADY IN THE RIGHT ORDER.", "THAT IS WHAT AUC 0.949 MEANS. THE TOP TEN IS DECIDED BY THE REST."] },
       { foc: [490, 88, 94, 80], say: ["QUESTION 3: WOULD HARDER NEGATIVES HELP? SAMPLE POPULAR GAMES MORE OFTEN.", "WORSE. VALIDATION NDCG@10 FALLS FROM 0.142 TO 0.078, BELOW POPULARITY."] },
       { foc: [240, 204, 225, 42], clue: true, clueDelay: 1, say: ["LAST QUESTION: IS IT OUR CODE? THE implicit LIBRARY'S BPR SCORES 0.1387.", "OURS SCORES 0.1498. SO NO.", "VERDICT: BPR DOES ITS JOB. ITS JOB IS PAIRS, NOT THE TOP TEN."] }] });

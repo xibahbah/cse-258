@@ -103,7 +103,7 @@ Across the whole file, 36.8 percent of owned games have zero playtime. So we def
 
 **22** · *OWNERS SAY NOTHING ABOUT HOURS*
 
-Two more observations from the exploratory analysis. Larger libraries contain more unplayed games. And the number of owners barely predicts hours played: the rank correlation is 0.01. The plots are in Section 2.3.
+Two more observations from the exploratory analysis. Mid-sized libraries are the most played, at about 70 percent, and the smallest and largest are lower. And the number of owners barely predicts hours played: the rank correlation is 0.01. The plots are in Section 2.3.
 
 **23** · *EVERY GAME, SORTED BY PLAYERS*
 
@@ -201,9 +201,9 @@ So two metrics give two different winners. AUC averages over all 3,570 positions
 
 That raises a question: why is BPR best on AUC but sixth of seven on NDCG? We investigated it directly, with three hypotheses. The diagnosis is in Section 4.2.
 
-**46** · *1. STOPPED TOO EARLY? NO.*
+**46** · *1. STOPPED TOO EARLY? UNLIKELY.*
 
-First, is it undertrained? No. The training signal flattens within a few epochs, and more epochs don't help.
+First, is it undertrained? Unlikely. Over the last ten epochs, the share of correctly ordered pairs rises by less than two points, so more epochs would add little.
 
 **47** · *2. WRONG TARGET? YES.*
 
