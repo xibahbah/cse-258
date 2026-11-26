@@ -126,7 +126,7 @@ function hud(si, b, tb, T, quiet) { const sc = SCENES[si], bt = sc.beats[cl(b, 0
   tx("CLUES", W - 10 - NCL * 12 - 6, SH + 12, GR, { al: "r" });
   if (quiet) return; const say = bt.say || []; let left = Math.floor(tb * 46);
   say.forEach((l, i) => { const n = Math.min(l.length, Math.max(0, left)); left -= l.length; if (n > 0) { if (i === 0) tx(l.slice(0, n), 12, SH + 29, Y2, { s: 2 }); else tx(l.slice(0, n), 12, SH + 49, Y2) } });
-  for (let i = 0; i < sc.beats.length; i++) R(W - 12 - (sc.beats.length - i) * 5, SH + 59, 3, 3, i <= b ? O1 : DM);
+  { let n = b + 1, tot = 0; SCENES.forEach((s, i) => { if (i < si) n += s.beats.length; tot += s.beats.length }); tx(n + "/" + tot, W - 10, SH + 55, O1, { f: "T", al: "r" }) }
   if (sc.panel) sc.panel(b, tb, T); else if (left >= 0 && (T * 2 | 0) % 2) tx(">", W - 18, SH + 34, O1) }
 
 /* ---------- wipes ---------- */
