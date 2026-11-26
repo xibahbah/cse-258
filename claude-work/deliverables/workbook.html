@@ -7802,42 +7802,36 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Recommending-Steam-Games:-Popularity-vs.-Collaborative-Filtering-vs.-a-Linear-Autoencoder">Recommending Steam Games: Popularity vs. Collaborative Filtering vs. a Linear Autoencoder<a class="anchor-link" href="#Recommending-Steam-Games:-Popularity-vs.-Collaborative-Filtering-vs.-a-Linear-Autoencoder">¶</a></h1><p><strong>Task.</strong> Given the games a Steam user has <em>played</em>, rank the rest of the catalog so that a <strong>held-out game the user really played</strong> appears near the top.</p>
-<p><strong>What this notebook contributes</strong></p>
-<ol>
-<li>A leakage-free <strong>train / validation / test</strong> protocol with <strong>full-catalog ranking</strong> (no sampled negatives) and bootstrap confidence intervals.</li>
-<li>Seven recommenders under one interface. Four are <strong>course models</strong> (Popularity, cosine Item-kNN, implicit-feedback ALS, BPR), PureSVD is the course's "SVD on a filled matrix" contrast, Random is a sanity check, and <strong>EASE is the one method from outside the course</strong>.</li>
-<li>Evidence that the comparison itself is right, not only the numbers: an audit of the raw file, known-answer tests of the metric code, a search that stops only when the best setting is not on a grid edge, a cross-check against the <code>implicit</code> reference library, and repeated splits.</li>
-<li>Error analysis beyond one number: by user activity, by held-out-game popularity, catalog coverage and exposure, and a qualitative case study.</li>
-</ol>
-<p><strong>Notebook map (matches the five graded presentation sections)</strong></p>
+<h1 id="Recommending-Steam-Games:-Popularity-vs.-Collaborative-Filtering-vs.-a-Linear-Autoencoder">Recommending Steam Games: Popularity vs. Collaborative Filtering vs. a Linear Autoencoder<a class="anchor-link" href="#Recommending-Steam-Games:-Popularity-vs.-Collaborative-Filtering-vs.-a-Linear-Autoencoder">¶</a></h1><p>This notebook asks a simple question: given the games a Steam player has actually played, can we rank the rest of the catalog so that a game we hid from them appears near the top? We answer it by comparing seven recommenders under one evaluation protocol, from a popularity baseline to the collaborative-filtering models covered in class, and one method from outside the course, EASE.</p>
+<p>Our main finding is that EASE ranks the hidden game highest, with a properly tuned implicit ALS model about ten percent behind. Most of the notebook is about whether that finding can be trusted. We audit the raw file before using it, test the evaluation code against cases with known answers, check that every model was tuned with the best setting inside its search range rather than on its edge, compare our hand-written models with a reference library, and re-run the comparison on new splits and a different choice of hidden game.</p>
+<p>The notebook follows the five sections of the presentation:</p>
 <table>
 <thead>
 <tr>
 <th>Section</th>
-<th>Content</th>
+<th>What it covers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>1</td>
-<td>Predictive task, evaluation, baselines, validity</td>
+<td>The predictive task, how we evaluate it, the baselines, and how we judge validity</td>
 </tr>
 <tr>
 <td>2</td>
-<td>Data, raw-file audit, exploratory analysis, pre-processing</td>
+<td>Where the data comes from, an audit of the raw file, exploratory analysis, and pre-processing</td>
 </tr>
 <tr>
 <td>3</td>
-<td>Modeling</td>
+<td>How the task becomes an ML problem, and the seven models with their trade-offs</td>
 </tr>
 <tr>
 <td>4</td>
-<td>Evaluation: metric tests, tuning, results, outside checks, error analysis</td>
+<td>The evaluation code and its tests, tuning, final results, three outside checks, and error analysis</td>
 </tr>
 <tr>
 <td>5</td>
-<td>Related work, conclusions, limitations</td>
+<td>Related work, conclusions, and limitations</td>
 </tr>
 </tbody>
 </table>
@@ -7851,32 +7845,20 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="1.-Predictive-task">1. Predictive task<a class="anchor-link" href="#1.-Predictive-task">¶</a></h1><p><strong>Task.</strong> <em>Top-N implicit-feedback recommendation.</em> For each user $u$ with played-game set $I_u$, produce a ranked list over all games $u$ has not played. One played game per user is hidden; the model is judged on where that game lands in the ranking.</p>
-<p><strong>What the model knows at prediction time.</strong> The user's other played games, and nothing else: no timestamps, no game metadata, no playtime of the hidden game. The hidden game is a <em>random</em> one of the user's played games, not the most recent, so this is a <strong>recover-a-hidden-game</strong> task. We do not claim to predict the <em>next</em> game a user will play.</p>
-<p><strong>Why this formulation?</strong> The Steam data has no star ratings. We observe <em>what</em> a user owns and <em>how long</em> they played it, so "played" is the implicit positive signal. Ranking, not rating prediction, is what a store front actually needs.</p>
-<p><strong>Evaluation protocol</strong></p>
+<h1 id="1.-Predictive-task">1. Predictive task<a class="anchor-link" href="#1.-Predictive-task">¶</a></h1><p>We start by defining exactly what a model is asked to do, because every later choice (the split, the metrics, the baselines) follows from it.</p>
+<p>The task is <strong>top-N recommendation from implicit feedback</strong>. For each player $u$ with a set of played games $I_u$, a model produces a ranked list over every game $u$ has not played. One of the player's played games is hidden beforehand, and the model is judged on where that game lands in its ranking. At prediction time the model sees only the player's other played games: no timestamps, no game metadata, and nothing about the hidden game itself.</p>
+<p>We frame it this way because of what the data contains. Steam has no star ratings; we only observe which games a player owns and how many minutes they played each one. "Played" is therefore our positive signal, and ranking, rather than predicting a rating, is what a storefront actually needs. Because the hidden game is chosen at random rather than being the most recent one, this is a <em>recover-a-hidden-game</em> task. We do not claim to predict the next game a player will pick up, and we return to this limitation in Section 4.4.</p>
+<p><strong>How we evaluate it.</strong> Each player contributes one test game and one validation game, and the rest of their games are used for training. Every model is tuned on validation only, then refit on training plus validation and scored once on test. Each model ranks <em>all</em> the games the player has not played, because evaluating against a small sample of negatives is known to reorder models (Krichene &amp; Rendle, 2020). Since each player has exactly one relevant game, Recall@K equals HitRate@K and precision adds no information, so we report four metrics, each with a 95% bootstrap interval over players:</p>
 <ul>
-<li>Per user: 1 test game, 1 validation game, the rest for training. Models are tuned on validation only. The final models are refit on train+validation and scored once on test.</li>
-<li>Every model ranks <strong>all</strong> unseen games (full ranking). Sampled-negative evaluation is known to distort model comparisons (Krichene &amp; Rendle, 2020).</li>
-<li>Because each user has exactly one relevant item, <strong>Recall@K = HitRate@K</strong>, and Precision@K is just Recall@K / K. Precision adds nothing, so we report: <strong>HR@10, NDCG@10, MRR, and AUC (mean percentile rank)</strong>, each with a 95% bootstrap CI over users.</li>
-<li>Ties are resolved pessimistically (a game tied with the target counts as ranked above it), so a model cannot gain by outputting many identical scores.</li>
+<li><strong>HR@10</strong>: is the hidden game in the top ten at all?</li>
+<li><strong>NDCG@10</strong>: how high in the top ten is it?</li>
+<li><strong>MRR</strong>: the reciprocal of its rank, over the whole list.</li>
+<li><strong>AUC</strong>: the share of other games ranked below it.</li>
 </ul>
-<p><strong>Baselines</strong></p>
-<ul>
-<li><em>Random</em>: sanity check. Its HR@10 must match the theoretical value 10 / (number of candidate games).</li>
-<li><em>Popularity</em>: the standard non-personalized baseline; very strong on long-tailed data.</li>
-<li><em>Item-kNN (cosine)</em>, <em>implicit ALS</em>, and <em>BPR</em>: the neighborhood, confidence-weighted latent-factor, and pairwise-ranking models covered in class. <em>PureSVD</em> is the truncated SVD the course contrasts with the latent-factor model.</li>
-<li><em>EASE</em> is the method from outside the course; the class models are its comparison points.</li>
-</ul>
-<p><strong>Validity checks</strong></p>
-<ol>
-<li>Random must be at chance.</li>
-<li>A personalized model must beat Popularity with a CI that excludes 0 on paired differences.</li>
-<li>Gains must hold across user-activity buckets, not only for heavy users.</li>
-<li>We report coverage and exposure concentration to show accuracy is not bought by recommending only blockbusters.</li>
-<li>The evaluation code must pass known-answer tests (Section 4.1), the hand-written ALS and BPR must agree with a reference library, and the model ordering must survive re-drawing the split (Section 4.4).</li>
-</ol>
-<p><strong>Caveat.</strong> This is an <em>offline proxy</em>. A held-out played game is not proof the user would <em>prefer</em> it over other recommendations, and the data has no timestamps, so the split is random rather than temporal. Section 4.4 stress-tests that choice with the file's <code>playtime_2weeks</code> field.</p>
+<p>Ties are resolved pessimistically, so a model cannot gain by giving many games the same score.</p>
+<p><strong>What we compare against.</strong> <em>Random</em> is a sanity check: its HR@10 must match the theoretical value of ten divided by the number of candidate games. <em>Popularity</em> is the standard non-personalized baseline and is hard to beat on long-tailed data. The course models (cosine <em>Item-kNN</em>, implicit <em>ALS</em>, <em>BPR</em>, and <em>PureSVD</em>, the truncated SVD the course contrasts with latent-factor models) serve as comparison points for <em>EASE</em>, the method from outside the course.</p>
+<p><strong>How we judge validity.</strong> A result only counts if Random lands at chance, if a personalized model beats Popularity with a paired confidence interval that excludes zero, and if the gain holds across player activity levels rather than only for heavy players. We also report how much of the catalog each model recommends, so that accuracy is not bought by showing only blockbusters. Finally, the evaluation code must pass known-answer tests (Section 4.1), our ALS and BPR must agree with a reference library, and the model ordering must survive re-drawing the split (Section 4.4).</p>
+<p>This is still an offline proxy. A hidden played game is not proof that the player would prefer it over the other recommendations, and the random split is not a temporal one. Section 4.4 stress-tests that choice using the file's <code>playtime_2weeks</code> field.</p>
 </div>
 </div>
 </div>
@@ -7887,9 +7869,10 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="2.-Data,-exploratory-analysis,-and-pre-processing">2. Data, exploratory analysis, and pre-processing<a class="anchor-link" href="#2.-Data,-exploratory-analysis,-and-pre-processing">¶</a></h1><h2 id="2.1-Context:-where-the-data-comes-from">2.1 Context: where the data comes from<a class="anchor-link" href="#2.1-Context:-where-the-data-comes-from">¶</a></h2><p><strong>Source:</strong> UCSD McAuley Lab, <em>Steam Video Game and Bundle Data</em> (<a href="https://mcauleylab.ucsd.edu/public_datasets/data/datasets.html">dataset page</a>). We use the <strong>Australian users and their items</strong> file: one record per public Steam profile with the list of games owned, <code>playtime_forever</code> (minutes), and <code>playtime_2weeks</code> (minutes in the two weeks before the crawl) for each. The profile crawl originates from O'Neill et al. (IMC 2016), as credited on the dataset page.</p>
-<p><strong>Format gotcha.</strong> Each line of the file is a <em>Python dict literal</em> (single quotes), <strong>not strict JSON</strong>. <code>json.loads</code> raises <code>JSONDecodeError</code> on it; the loader below falls back to <code>ast.literal_eval</code>.</p>
-<p><strong>Sampling.</strong> Parsing every user is slow and the dense item-item matrices need memory, so we keep a <strong>random</strong> fraction of users (<code>SAMPLE_FRAC</code>). The sample is drawn line by line with a seeded generator, not by taking the first N lines, because the file may be ordered.</p>
+<h1 id="2.-Data,-exploratory-analysis,-and-pre-processing">2. Data, exploratory analysis, and pre-processing<a class="anchor-link" href="#2.-Data,-exploratory-analysis,-and-pre-processing">¶</a></h1><p>With the task defined, we turn to the data it runs on. This section explains where the file comes from, checks the raw records for problems a cleaned table would hide, explores the patterns that shape our modeling choices, and ends with the matrices every model will use.</p>
+<h2 id="2.1-Context:-where-the-data-comes-from">2.1 Context: where the data comes from<a class="anchor-link" href="#2.1-Context:-where-the-data-comes-from">¶</a></h2><p>We use the <em>Steam Video Game and Bundle Data</em> from the UCSD McAuley Lab (<a href="https://mcauleylab.ucsd.edu/public_datasets/data/datasets.html">dataset page</a>), specifically the <strong>Australian users and their items</strong> file. Each record is one public Steam profile with the games it owns and, for each game, <code>playtime_forever</code> (total minutes) and <code>playtime_2weeks</code> (minutes in the two weeks before the crawl). The profiles were crawled for O'Neill et al. (IMC 2016), a measurement study of how people use Steam, as credited on the dataset page.</p>
+<p>One practical detail: each line of the file is a Python dict literal with single quotes, not strict JSON, so <code>json.loads</code> fails on it. The loader below falls back to <code>ast.literal_eval</code>.</p>
+<p>Parsing every profile is slow, and some models need dense game-by-game matrices, so we keep a random fraction of players (<code>SAMPLE_FRAC</code>). The sample is drawn line by line with a seeded generator rather than by taking the first lines of the file, in case the file is ordered.</p>
 </div>
 </div>
 </div>
@@ -8119,12 +8102,10 @@ Loaded interactions: 1,810,138 | users: 24,793 | games: 10,094
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.2-Raw-file-audit:-what-the-cleaned-table-would-hide">2.2 Raw-file audit: what the cleaned table would hide<a class="anchor-link" href="#2.2-Raw-file-audit:-what-the-cleaned-table-would-hide">¶</a></h2><p>Before any modeling we check the raw records for three things that could quietly bias a recommender.</p>
-<ul>
-<li><strong>Repeated profiles.</strong> If the same user appeared twice as two "users", one copy's held-out game would sit in the other copy's training row, which leaks the answer to item-based models. The loader merges repeats by <code>user_id</code>, and the count is printed above.</li>
-<li><strong>Titles that are owned but not chosen.</strong> Steam grants some titles automatically (test clients, betas). They are "owned" by a huge number of profiles and played by almost none.</li>
-<li><strong>An unused field.</strong> <code>playtime_2weeks</code> is the only time-related signal in the file. We do not train on it, but Section 4.4 uses it to stress-test the random split.</li>
-</ul>
+<h2 id="2.2-Raw-file-audit:-what-the-cleaned-table-would-hide">2.2 Raw-file audit: what the cleaned table would hide<a class="anchor-link" href="#2.2-Raw-file-audit:-what-the-cleaned-table-would-hide">¶</a></h2><p>Before building anything on the data, we check the raw records for three problems that could quietly bias a recommender.</p>
+<p>The first is <strong>repeated profiles</strong>. If the same player appeared twice as two different players, the game hidden from one copy would sit in the other copy's training row, which hands the answer to any item-based model. The loader merges repeats by <code>user_id</code>, and the cell above prints how many it found.</p>
+<p>The second is <strong>games that are owned but never chosen</strong>. Steam adds some titles to libraries automatically, such as test clients and betas. They are owned by a huge number of profiles and played by almost none, so they look popular without telling us anything about taste.</p>
+<p>The third is a field we do not train on but will use later. <code>playtime_2weeks</code> is the only time-related signal in the file, and Section 4.4 uses it to stress-test our random split. The table below lists the most-owned games with their owners, players, and recent players.</p>
 </div>
 </div>
 </div>
@@ -8334,12 +8315,7 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.3-Exploratory-analysis">2.3 Exploratory analysis<a class="anchor-link" href="#2.3-Exploratory-analysis">¶</a></h2><p>Questions the EDA answers, and why each matters for modeling:</p>
-<ul>
-<li><strong>Is ownership the same as engagement?</strong> If many owned games have zero playtime, treating ownership as a positive would teach models about Steam sales rather than taste.</li>
-<li><strong>How heavy-tailed are users and games?</strong> Heavy tails make Popularity strong and make some models over-recommend blockbusters.</li>
-<li><strong>Does popularity predict engagement?</strong> If widely owned games are also played for long, popularity is a legitimately strong signal; if not, the two signals diverge.</li>
-</ul>
+<h2 id="2.3-Exploratory-analysis">2.3 Exploratory analysis<a class="anchor-link" href="#2.3-Exploratory-analysis">¶</a></h2><p>The audit suggests that ownership and play are different things. The exploratory analysis checks how far that goes, and answers two further questions that matter for modeling: how concentrated play is on a few games, and whether popular games are also the ones people play for long. The answers decide our positive signal, tell us which baseline will be hard to beat, and tell us how to break down the results later.</p>
 </div>
 </div>
 </div>
@@ -8599,13 +8575,9 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>What the EDA tells us (read against the plots above).</strong></p>
-<ul>
-<li>The never-played share and its trend across library-size deciles show that <strong>ownership is a noisy proxy for interest</strong>, especially for users with huge libraries (typically bundle and sale purchases). We therefore define a positive as <strong>playtime &gt; threshold</strong>, not ownership.</li>
-<li>The rank-frequency plot and the Lorenz/Gini values show a pronounced long tail: a few games hold a large share of interactions. Popularity will be hard to beat on <em>head</em> items, so Section 4 stratifies the results by head/torso/tail.</li>
-<li>The owners-vs-median-hours panel shows whether popularity and engagement agree. Free-to-play titles tend to be owned by many people who play briefly, so "owned by many" is not the same as "played for long."</li>
-<li>The audit table in 2.2 makes the same point from the raw records: the most-owned title in the sample is an automatically granted test client that almost none of its owners launched. Had we treated ownership as the positive signal, Popularity would have recommended it to everyone and item-based models would have learned co-ownership of free grants instead of taste.</li>
-</ul>
+<p><strong>What the plots tell us.</strong> The never-played share, and how it grows across library-size deciles, shows that ownership is a noisy proxy for interest, especially for players with huge libraries, which tend to come from bundles and sales. Across the sample, 36.8% of owned games have zero playtime. We therefore define a positive as a game with playtime above a threshold, not a game that is owned. The audit table in 2.2 makes the same point from the raw records: the most-owned title is an automatically granted test client that almost none of its owners launched. Had we used ownership, Popularity would have recommended it to everyone, and the item-based models would have learned which free grants come together rather than what people like.</p>
+<p>The rank-frequency plot and the Lorenz curve show a pronounced long tail: a handful of games account for most of the play. That makes Popularity hard to beat on the most-played games, so Section 4 breaks results down by head, torso, and tail. Finally, the owners-versus-hours panel shows that being owned by many people is not the same as being played for long. Free-to-play titles in particular are owned widely and played briefly.</p>
+<p>With the positive signal settled and the long tail in view, we can clean the data and build the matrices the models will train on.</p>
 </div>
 </div>
 </div>
@@ -8616,12 +8588,14 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2.4-Pre-processing">2.4 Pre-processing<a class="anchor-link" href="#2.4-Pre-processing">¶</a></h2><ol>
-<li><strong>Positive interaction</strong> = <code>playtime_forever &gt; MIN_PLAYTIME</code>.</li>
-<li><strong>Iterative k-core filter</strong> (repeat until stable): users with at least <code>MIN_USER_ITEMS</code> played games and games with at least <code>MIN_ITEM_USERS</code> players. A fixed number of passes does not guarantee a stable core, so the loop runs until nothing is removed.</li>
-<li><strong>Per-user random split</strong>: 1 test game, 1 validation game, rest train. All users have at least 5 interactions after filtering, so everyone has all three parts. The split is vectorized and seeded.</li>
-<li>Two training matrices: <strong>binary</strong> (played = 1) and <strong>playtime-weighted</strong> (<code>log(1 + hours)</code>), the latter used by one ALS variant to test whether engagement strength helps.</li>
+<h2 id="2.4-Pre-processing">2.4 Pre-processing<a class="anchor-link" href="#2.4-Pre-processing">¶</a></h2><p>Pre-processing turns the raw records into the inputs every model shares. It happens in four steps.</p>
+<ol>
+<li><strong>Positive interactions.</strong> A player-game pair is a positive if <code>playtime_forever &gt; MIN_PLAYTIME</code>.</li>
+<li><strong>Iterative k-core filter.</strong> We keep players with at least <code>MIN_USER_ITEMS</code> played games and games with at least <code>MIN_ITEM_USERS</code> players. Removing a game can push a player below the threshold and the other way around, so a fixed number of passes does not guarantee a stable result; the loop repeats until a pass removes nothing.</li>
+<li><strong>Per-player random split.</strong> Each player gets one test game, one validation game, and the rest for training. Every player has at least five games after filtering, so all three parts are always present. The split is vectorized and seeded.</li>
+<li><strong>Two training matrices.</strong> A binary matrix (played = 1) and a playtime-weighted one ($\log(1 + \text{hours})$). The weighted matrix feeds one ALS variant, to test whether how much someone plays carries extra signal.</li>
 </ol>
+<p>The output of this cell is the dataset every model sees: 20,940 players, 3,570 games, and 1,063,175 training interactions.</p>
 </div>
 </div>
 </div>
@@ -8733,12 +8707,10 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="3.-Modeling">3. Modeling<a class="anchor-link" href="#3.-Modeling">¶</a></h1><h2 id="3.1-Formulation">3.1 Formulation<a class="anchor-link" href="#3.1-Formulation">¶</a></h2><ul>
-<li><strong>Input:</strong> binary user-game matrix $X \in \{0,1\}^{U \times I}$ (optionally weighted by $\log(1+\text{hours})$).</li>
-<li><strong>Output:</strong> a score $\hat{s}_{ui}$ for every game; recommendations are the top-$K$ unseen games by score.</li>
-<li><strong>Optimized:</strong> depends on the model. Reconstruction error (PureSVD, EASE), weighted squared error with confidence (ALS), or pairwise ranking likelihood (BPR).</li>
-</ul>
-<h2 id="3.2-Models-and-trade-offs">3.2 Models and trade-offs<a class="anchor-link" href="#3.2-Models-and-trade-offs">¶</a></h2><table>
+<h1 id="3.-Modeling">3. Modeling<a class="anchor-link" href="#3.-Modeling">¶</a></h1><p>Now that the data is in matrix form, we can state the learning problem and introduce the models that solve it.</p>
+<h2 id="3.1-Formulation">3.1 Formulation<a class="anchor-link" href="#3.1-Formulation">¶</a></h2><p>Every model receives the same input, a player-by-game matrix $X \in \{0,1\}^{U \times I}$, optionally weighted by $\log(1+\text{hours})$. Every model produces the same output, a score $\hat{s}_{ui}$ for every game, and the recommendation is the $K$ highest-scoring games the player has not played. What changes from model to model is the objective being optimized: reconstruction error for PureSVD and EASE, a confidence-weighted squared error for ALS, and a pairwise ranking likelihood for BPR. Popularity and Item-kNN have no training objective at all.</p>
+<h2 id="3.2-Models-and-trade-offs">3.2 Models and trade-offs<a class="anchor-link" href="#3.2-Models-and-trade-offs">¶</a></h2><p>The table summarizes each model, what it gains, and what it costs.</p>
+<table>
 <thead>
 <tr>
 <th>Model</th>
@@ -8758,17 +8730,17 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <td>Popularity</td>
 <td>score = number of players</td>
 <td>trivial, strong on long-tailed data</td>
-<td>not personalized; zero coverage of the tail</td>
+<td>not personalized; never recommends the tail</td>
 </tr>
 <tr>
 <td>Item-kNN</td>
 <td>$s_{ui}=\sum_{j\in I_u} \mathrm{sim}(j,i)$, asymmetric cosine with top-$k$ neighbors</td>
 <td>interpretable, no training</td>
-<td>dense $I\times I$ matrix; sensitive to popularity normalization $\alpha$</td>
+<td>dense $I\times I$ matrix; sensitive to the popularity normalization $\alpha$</td>
 </tr>
 <tr>
 <td>PureSVD</td>
-<td>project the user row onto top-$f$ singular vectors</td>
+<td>project the player's row onto the top-$f$ singular vectors</td>
 <td>one SVD call, fast</td>
 <td>first component mostly encodes popularity; treats unobserved as 0</td>
 </tr>
@@ -8776,25 +8748,25 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 <td>Implicit ALS</td>
 <td>latent factors with confidence $c_{ui}=1+\alpha r_{ui}$ over <em>all</em> cells (Hu, Koren &amp; Volinsky 2008)</td>
 <td>principled for implicit data; closed-form updates</td>
-<td>slower; $\alpha$, reg, $f$ to tune</td>
+<td>slower; $\alpha$, regularization and $f$ to tune</td>
 </tr>
 <tr>
 <td>BPR-MF</td>
-<td>maximize $\ln\sigma(\hat{s}_{ui}-\hat{s}_{uj})$ for observed $i$, sampled unobserved $j$ (Rendle et al. 2009)</td>
-<td>optimizes ranking directly</td>
-<td>negative sampling noise; learning-rate sensitive</td>
+<td>maximize $\ln\sigma(\hat{s}_{ui}-\hat{s}_{uj})$ for an observed $i$ and a sampled unobserved $j$ (Rendle et al. 2009)</td>
+<td>optimizes a ranking directly</td>
+<td>noise from negative sampling; sensitive to the learning rate</td>
 </tr>
 <tr>
 <td>EASE</td>
-<td>closed-form linear autoencoder $B$ with zero diagonal (Steck 2019)</td>
+<td>closed-form linear item-to-item model $B$ with a zero diagonal (Steck 2019)</td>
 <td>no SGD; often state of the art on sparse data</td>
 <td>$O(I^3)$ inverse and $I^2$ memory: does not scale to millions of items</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Where each model sits relative to the course.</strong> Popularity, cosine Item-kNN, implicit ALS (confidence-weighted squared error over all cells), and BPR (pairwise loss over sampled unobserved items) are the course's recommendation models. PureSVD is the truncated SVD of the zero-filled matrix, which the course contrasts with the latent-factor model because it optimizes a different objective. EASE is not a course model. Its closest relative in the course is SLIM: both learn an item-to-item weight matrix with a zero diagonal, but SLIM uses an L1 + L2 penalty with non-negativity and is fit column by column, while EASE keeps only the L2 penalty and so has a closed form. It is not AutoRec, which has a hidden layer and a non-linear encoder.</p>
-<p><strong>Cost.</strong> Item-kNN and EASE both build the $I \times I$ Gram matrix ($O(\text{nnz}\cdot\bar n)$ time, $O(I^2)$ memory); EASE adds one $O(I^3)$ inverse. ALS costs $O(\text{nnz}\,f^2 + (U+I) f^3)$ per sweep. BPR costs $O(\text{nnz}\,f)$ per epoch but needs many epochs and a learning rate.</p>
-<p>All models implement the same interface (<code>fit(X, W)</code> and <code>score(users)</code>), so one evaluation routine scores them all. Everything is implemented from scratch in NumPy/SciPy except the truncated SVD solver.</p>
+<p>Popularity, cosine Item-kNN, implicit ALS, and BPR are the recommendation models from the course. PureSVD is the truncated SVD of the zero-filled matrix, which the course contrasts with latent-factor models because it optimizes a different objective. EASE is not a course model. Its closest course relative is SLIM: both learn an item-to-item weight matrix with a zero diagonal, but SLIM uses an L1 plus L2 penalty with non-negativity and is fit column by column, while EASE keeps only the L2 penalty and therefore has a closed-form solution. Despite the "autoencoder" in its name, it is not AutoRec, which has a hidden layer and a non-linear encoder.</p>
+<p>The models also differ in cost. Item-kNN and EASE both build the $I \times I$ Gram matrix, which takes $O(\text{nnz}\cdot\bar n)$ time and $O(I^2)$ memory, and EASE adds one $O(I^3)$ inverse. ALS costs $O(\text{nnz}\,f^2 + (U+I) f^3)$ per sweep. BPR costs only $O(\text{nnz}\,f)$ per epoch, but it needs many epochs and a learning rate.</p>
+<p>The code below implements all seven from scratch in NumPy and SciPy, except for the truncated SVD solver. Every model exposes the same interface, <code>fit(X, W)</code> and <code>score(users)</code>, so a single evaluation routine can score them all.</p>
 </div>
 </div>
 </div>
@@ -8932,11 +8904,10 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="4.-Evaluation">4. Evaluation<a class="anchor-link" href="#4.-Evaluation">¶</a></h1><h2 id="4.1-Protocol-implementation">4.1 Protocol implementation<a class="anchor-link" href="#4.1-Protocol-implementation">¶</a></h2><p><code>rank_of_targets</code> scores a batch of users against the <strong>entire catalog</strong>, masks games the user already has, and returns the (pessimistic) rank of the held-out game. All metrics derive from that single rank, so they are guaranteed consistent:</p>
-<ul>
-<li>$\text{HR@K}=\mathbb{1}[\text{rank}\le K]$, $\text{NDCG@K}=\mathbb{1}[\text{rank}\le K]/\log_2(\text{rank}+1)$ (ideal DCG is 1 with one relevant item), $\text{MRR}=1/\text{rank}$, $\text{AUC}=1-\frac{\text{rank}-1}{|\text{candidates}|-1}$.</li>
-</ul>
-<p>HR@K tells us whether the item is shown at all, NDCG/MRR reward ranking it higher, and AUC summarizes the whole ranking (it is insensitive to the top of the list, so it can disagree with HR@10; both are reported).</p>
+<h1 id="4.-Evaluation">4. Evaluation<a class="anchor-link" href="#4.-Evaluation">¶</a></h1><p>With seven models built, we need a way to compare them that we can trust. This section first implements and tests the evaluation, then tunes each model on validation data, reports the final test results, checks those results against outside evidence, and finally looks past a single average at where each model wins.</p>
+<h2 id="4.1-Protocol-implementation">4.1 Protocol implementation<a class="anchor-link" href="#4.1-Protocol-implementation">¶</a></h2><p>The whole evaluation rests on one function. <code>rank_of_targets</code> scores a batch of players against the entire catalog, masks the games each player already has, and returns the pessimistic rank of the hidden game. Every metric is then computed from that single rank, so the metrics cannot disagree because of a bookkeeping error:</p>
+<p>$$\text{HR@K}=\mathbb{1}[\text{rank}\le K],\quad \text{NDCG@K}=\frac{\mathbb{1}[\text{rank}\le K]}{\log_2(\text{rank}+1)},\quad \text{MRR}=\frac{1}{\text{rank}},\quad \text{AUC}=1-\frac{\text{rank}-1}{|\text{candidates}|-1}$$</p>
+<p>The ideal DCG is 1 because each player has one relevant game. HR@K tells us whether the game is shown at all, NDCG and MRR reward ranking it higher, and AUC summarizes the whole ranking. Because AUC barely notices the top of the list, it can disagree with HR@10, which is why we report both.</p>
 </div>
 </div>
 </div>
@@ -9001,7 +8972,7 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Known-answer-tests-of-the-evaluation-code">Known-answer tests of the evaluation code<a class="anchor-link" href="#Known-answer-tests-of-the-evaluation-code">¶</a></h3><p>Every number in Section 4 passes through <code>rank_of_targets</code> and <code>metrics_from_ranks</code>, so a bug there would silently corrupt all of them. The cell below feeds them hand-built score tables whose correct ranks we can work out on paper, covering the cases that usually go wrong: masking of games the user already has, ties, a target ranked first and last, and the metric formulas at known ranks. It also checks the split itself: no user's validation or test game may appear in that user's training row.</p>
+<h3 id="Known-answer-tests-of-the-evaluation-code">Known-answer tests of the evaluation code<a class="anchor-link" href="#Known-answer-tests-of-the-evaluation-code">¶</a></h3><p>Every number in Section 4 passes through <code>rank_of_targets</code> and <code>metrics_from_ranks</code>, so a bug in either would silently corrupt all of them. Before trusting them, we feed them hand-built score tables whose correct ranks we can work out on paper. The cases are the ones that usually go wrong: a game the player already owns that must be masked, a tie, a target ranked first, a target ranked last, and the metric formulas at known ranks. The cell also checks the split itself: no player's validation or test game may appear in that player's training row.</p>
 </div>
 </div>
 </div>
@@ -9071,13 +9042,9 @@ Pairs played in the last two weeks: 2.7% | profiles with at least one such game:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.2-Hyper-parameter-tuning-(validation-only)">4.2 Hyper-parameter tuning (validation only)<a class="anchor-link" href="#4.2-Hyper-parameter-tuning-(validation-only)">¶</a></h2><p>Each model family is tuned on a random subset of <strong>validation</strong> users, fitted on the training matrix only, selecting by validation <strong>NDCG@10</strong>. The test set is not touched here.</p>
-<p><strong>A comparison is only as fair as its weakest search.</strong> A model whose best setting sits on the edge of its grid has not been tuned: the true optimum may lie outside. The table after the search therefore reports, setting by setting, whether the selected value is <em>interior</em> or on an <em>edge</em>, and how much it gained over its best neighbour. Where an edge remains, the text below says what we know about it.</p>
-<ul>
-<li>Item-kNN, PureSVD, and EASE are cheap, so they get full grids.</li>
-<li>ALS is searched in two stages: confidence $\alpha$ and regularization on a 3 x 3 grid at $f=64$, then the number of factors at the best pair.</li>
-<li>BPR is searched over factors and learning rate.</li>
-</ul>
+<h2 id="4.2-Hyper-parameter-tuning-(validation-only)">4.2 Hyper-parameter tuning (validation only)<a class="anchor-link" href="#4.2-Hyper-parameter-tuning-(validation-only)">¶</a></h2><p>With the evaluation verified, we can tune the models. Each model family is fitted on the training matrix and scored on a random subset of validation players, and we keep the setting with the highest validation NDCG@10. The test games are not touched here.</p>
+<p>A comparison is only as fair as its weakest search. If a model's best setting sits on the edge of its grid, it has not really been tuned, because the true optimum may lie outside the range we tried. After the search, the table therefore reports for each setting whether the selected value is <em>interior</em> or on an <em>edge</em>, and how much it gained over its best neighbor.</p>
+<p>The search effort follows the cost of each model. Item-kNN, PureSVD, and EASE are cheap, so they get full grids. ALS is searched in two stages: confidence $\alpha$ and regularization on a 3 by 3 grid at $f=64$, then the number of factors at the best pair. BPR is searched over the number of factors and the learning rate.</p>
 </div>
 </div>
 </div>
@@ -9704,16 +9671,13 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Reading the search.</strong></p>
+<p><strong>Reading the search.</strong> The most important result is that regularization decides ALS. At $f=64$ and $\alpha=3$, validation NDCG@10 is 0.1543 with a regularization of 20, 0.1795 with 80, and 0.1279 with 300. A study that fixes this value, as our first draft did at 10, understates ALS by a wide margin and overstates every model compared against it.</p>
+<p>EASE and PureSVD both have clean interior optima ($\lambda=100$ and $f=12$). PureSVD gets worse quickly as factors are added (0.1576 at 12, 0.1056 at 64), because beyond the first few singular vectors it starts fitting the zeros.</p>
+<p>Three settings still sit on an edge, and none of them changes the conclusions:</p>
 <ul>
-<li><strong>Regularization is the setting that decides ALS.</strong> At $f=64$, $\alpha=3$, validation NDCG@10 is 0.1543 with reg = 20, 0.1795 with reg = 80, and 0.1279 with reg = 300. A study that fixes this value understates ALS by a wide margin and overstates every model compared against it.</li>
-<li><strong>EASE and PureSVD have clean interior optima</strong> ($\lambda=100$; $f=12$). PureSVD <em>degrades</em> quickly with more factors (0.1576 at 12, 0.1056 at 64): beyond the first few singular vectors it fits the zeros.</li>
-<li><strong>Edges that remain, and why they do not change the conclusions.</strong><ul>
-<li><em>Item-kNN, k:</em> no truncation is best, but by +0.0005 over k = 800. The curve is flat.</li>
-<li><em>ALS, factors:</em> still rising at 128 (+0.0088 over 64). Our NumPy solver is cubic in $f$, so Check 1 in Section 4.4 asks the reference library for 256 factors instead and measures the headroom directly.</li>
+<li><em>Item-kNN, k:</em> using every neighbor is best, but only by +0.0005 over k = 800. The curve is flat.</li>
+<li><em>ALS, factors:</em> still rising at 128 (+0.0088 over 64). Our NumPy solver is cubic in $f$, so Check 1 in Section 4.4 asks a reference library for 256 factors to measure the remaining headroom directly.</li>
 <li><em>BPR, factors:</em> still rising at 128 (+0.0112 over 64). BPR would need several times that gain to reach ALS, and the diagnosis below shows what actually limits it.</li>
-</ul>
-</li>
 </ul>
 </div>
 </div>
@@ -9725,12 +9689,10 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Why-is-BPR-weak-here?-A-diagnosis,-not-an-excuse">Why is BPR weak here? A diagnosis, not an excuse<a class="anchor-link" href="#Why-is-BPR-weak-here?-A-diagnosis,-not-an-excuse">¶</a></h3><p>BPR is a course model and, on paper, the one that "optimizes ranking directly", so a weak result needs an explanation backed by evidence. Three candidate causes, each tested:</p>
-<ol>
-<li><strong>Under-training.</strong> The left panel tracks training over epochs. If the curves are still moving at the last epoch, more epochs would help.</li>
-<li><strong>The objective is not the metric.</strong> BPR maximizes the chance that a played game outranks <em>one uniformly sampled unplayed game</em>, which is AUC. NDCG@10 only rewards the very top of a 3,570-game list. The middle panel shows the share of sampled training pairs the model already orders correctly: once that is high, most gradient updates are near zero even though the top of the list is not yet right.</li>
-<li><strong>Easy negatives.</strong> With a long-tailed catalog a uniformly sampled negative is almost always an obscure game. If that were the whole story, sampling negatives in proportion to popularity (harder negatives) should help. The right panel tests it.</li>
-</ol>
+<h3 id="Why-is-BPR-weak-here?-A-diagnosis">Why is BPR weak here? A diagnosis<a class="anchor-link" href="#Why-is-BPR-weak-here?-A-diagnosis">¶</a></h3><p>The search leaves one result that needs explaining. BPR is a course model and, on paper, the one that optimizes a ranking directly, yet it trails most other models on NDCG@10. Rather than accept that, we test three possible causes.</p>
+<p>The first is <strong>under-training</strong>: if BPR's learning curves are still moving at the last epoch, more epochs would help. The left panel below tracks training over epochs.</p>
+<p>The second is that <strong>the objective is not the metric</strong>. BPR maximizes the chance that a played game outranks <em>one uniformly sampled unplayed game</em>, which is exactly AUC, while NDCG@10 only rewards the very top of a 3,570-game list. The middle panel shows the share of sampled training pairs the model already orders correctly. Once that share is high, most gradient updates are close to zero, even if the top of the list is not yet right.</p>
+<p>The third is <strong>easy negatives</strong>. On a long-tailed catalog, a uniformly sampled negative is almost always an obscure game. If that were the whole problem, sampling negatives in proportion to popularity (harder negatives) should help, and the right panel tests it.</p>
 </div>
 </div>
 </div>
@@ -9830,13 +9792,9 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>What the diagnosis shows.</strong></p>
-<ol>
-<li><em>Not under-trained.</em> The gradient weight and the share of correctly ordered pairs both flatten well before the last epoch.</li>
-<li><em>The objective is met; the metric is not.</em> By the last epoch the model orders 96.3% of sampled (played, random unplayed) pairs correctly, and its validation AUC is 0.9485, well above Popularity's 0.9084. Its NDCG@10 is 0.1421 against Popularity's 0.1118. BPR is doing what it optimizes: pushing played games above the <em>bulk</em> of the catalog. A top-10 list is decided among the few dozen strongest candidates, and a uniformly sampled negative is almost never one of them.</li>
-<li><em>Harder negatives make it worse.</em> Sampling negatives in proportion to popularity$^{0.75}$ drops validation NDCG@10 from 0.1421 to 0.0784. Under a random holdout the hidden game is itself usually popular, so a sampler that punishes popular games punishes the answers.</li>
-</ol>
-<p>So BPR's place in the results table is a property of the pairwise-uniform objective on a long-tailed catalog, not of our implementation. Section 4.4 confirms that with a reference library.</p>
+<p><strong>What the diagnosis shows.</strong> BPR is not under-trained: both the gradient weight and the share of correctly ordered pairs flatten well before the last epoch. It does meet its own objective. By the last epoch it orders 96.3% of sampled (played, random unplayed) pairs correctly, and its validation AUC is 0.9485, well above Popularity's 0.9084. Its NDCG@10, however, is only 0.1421 against Popularity's 0.1118. BPR is doing what it optimizes, pushing played games above the bulk of the catalog, but a top-ten list is decided among the few dozen strongest candidates, and a uniformly sampled negative is almost never one of them.</p>
+<p>Harder negatives make things worse, not better. Sampling negatives in proportion to popularity$^{0.75}$ drops validation NDCG@10 from 0.1421 to 0.0784. Under a random holdout the hidden game is itself usually popular, so a sampler that penalizes popular games penalizes the right answers.</p>
+<p>BPR's place in the results is therefore a property of its pairwise-uniform objective on a long-tailed catalog, not of our implementation, and Section 4.4 confirms this against a reference library. With every model tuned, we can now score them on the test games.</p>
 </div>
 </div>
 </div>
@@ -9847,7 +9805,7 @@ Selected hyper-parameters: {'Item-kNN': {'k': 3570, 'alpha': 0.5}, 'PureSVD': {'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.3-Final-test-evaluation">4.3 Final test evaluation<a class="anchor-link" href="#4.3-Final-test-evaluation">¶</a></h2><p>Selected configurations are <strong>refit on train + validation</strong> and scored on the <strong>test</strong> game of every user. We add a <strong>user-level bootstrap</strong> (resample users with replacement, 500 times) for 95% CIs; the same resamples are used for every model, so differences between models are <em>paired</em>.</p>
+<h2 id="4.3-Final-test-evaluation">4.3 Final test evaluation<a class="anchor-link" href="#4.3-Final-test-evaluation">¶</a></h2><p>Each model is now refit on training plus validation with its selected settings and scored on every player's test game. To measure uncertainty, we resample players with replacement 500 times and report 95% intervals. The same resamples are used for every model, so differences between models are <em>paired</em>, which gives much tighter intervals on the differences than on the scores themselves.</p>
 </div>
 </div>
 </div>
@@ -10222,12 +10180,9 @@ Popularity                fitted+scored in 0s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Reading the table.</strong></p>
-<ul>
-<li><strong>EASE is best on every top-of-list metric</strong>, and tuned <strong>binary ALS is second</strong> (NDCG@10 0.2251 vs. 0.2042). The paired bootstrap below puts the difference at +0.0210 with an interval that excludes zero.</li>
-<li><strong>The metrics disagree, and the disagreement is informative.</strong> On AUC the order nearly reverses: BPR is <em>first</em> (0.9484), ALS second (0.9468), and EASE (0.9094) is barely above Popularity (0.9076). AUC averages over all 3,570 positions; NDCG@10 looks only at the top ten. BPR and ALS order the whole catalog well; EASE concentrates its accuracy at the head of the list, where a storefront shows results. For a top-N task NDCG@10 and HR@10 are the right targets, which is why they, not AUC, select our models. A project that reported AUC alone would have crowned a different winner.</li>
-<li><strong>Playtime weighting does not help ALS under this holdout</strong> (0.1951 weighted vs. 0.2042 binary). Section 4.4 shows that this conclusion depends on which game is hidden.</li>
-</ul>
+<p><strong>Reading the results.</strong> EASE is best on every top-of-list metric, and tuned binary ALS is second, with NDCG@10 of 0.2251 against 0.2042. The paired bootstrap at the end of the notebook puts the difference at +0.0210, with an interval that excludes zero. Against Popularity, EASE's NDCG@10 is 93% higher.</p>
+<p>The metrics do not agree, and the disagreement is informative. On AUC the order nearly reverses: BPR is first (0.9484), ALS second (0.9468), and EASE (0.9094) is barely above Popularity (0.9076). AUC averages over all 3,570 positions, while NDCG@10 looks only at the top ten. BPR and ALS order the whole catalog well; EASE concentrates its accuracy at the top of the list, which is where a storefront shows results. For a top-N task, NDCG@10 and HR@10 are the right targets, which is why they select our models. A project that reported AUC alone would have crowned a different winner.</p>
+<p>Playtime weighting does not help ALS under this holdout (0.1951 weighted against 0.2042 binary). As the next section shows, that conclusion depends on which game is hidden.</p>
 </div>
 </div>
 </div>
@@ -10238,8 +10193,8 @@ Popularity                fitted+scored in 0s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.4-Is-the-result-right?-Three-checks-that-do-not-depend-on-our-own-code-or-our-one-split">4.4 Is the result right? Three checks that do not depend on our own code or our one split<a class="anchor-link" href="#4.4-Is-the-result-right?-Three-checks-that-do-not-depend-on-our-own-code-or-our-one-split">¶</a></h2><p>A results table can be wrong in ways its own confidence intervals cannot see: a bug in a hand-written model, a lucky split, or an evaluation design that flatters one family. Each check below attacks one of those.</p>
-<h3 id="Check-1:-the-hand-written-ALS-and-BPR-against-a-reference-library">Check 1: the hand-written ALS and BPR against a reference library<a class="anchor-link" href="#Check-1:-the-hand-written-ALS-and-BPR-against-a-reference-library">¶</a></h3><p>The course demonstrates the <code>implicit</code> library for these two models. We fit its ALS at the <em>same</em> factors, confidence, and regularization as ours (its confidence parameterization is $c = 1+\alpha r$ once the matrix is rescaled, so the settings map exactly). Its BPR uses per-sample SGD where ours uses mini-batches, so learning rates do not transfer; we give it its own small validation search instead. If our implementations were broken, the library would beat them clearly. We also ask the library for an ALS with twice as many factors as our search reached, to measure how much headroom is left.</p>
+<h2 id="4.4-Is-the-result-right?-Three-checks-that-do-not-depend-on-our-own-code-or-our-one-split">4.4 Is the result right? Three checks that do not depend on our own code or our one split<a class="anchor-link" href="#4.4-Is-the-result-right?-Three-checks-that-do-not-depend-on-our-own-code-or-our-one-split">¶</a></h2><p>The results table can still be wrong in ways its own confidence intervals cannot detect: a bug in a hand-written model, a lucky split, or an evaluation design that flatters one family of models. Each of the three checks below targets one of those risks.</p>
+<h3 id="Check-1:-the-hand-written-ALS-and-BPR-against-a-reference-library">Check 1: the hand-written ALS and BPR against a reference library<a class="anchor-link" href="#Check-1:-the-hand-written-ALS-and-BPR-against-a-reference-library">¶</a></h3><p>The course demonstrates the <code>implicit</code> library for ALS and BPR, so we compare our implementations with it. We fit its ALS at the <em>same</em> factors, confidence, and regularization as ours; once the matrix is rescaled, its confidence parameterization is also $c = 1+\alpha r$, so the settings map exactly. Its BPR uses per-sample SGD where ours uses mini-batches, so learning rates do not transfer, and we give it its own small validation search instead. If our implementations were broken, the library would beat them clearly. We also ask the library for an ALS with twice as many factors as our search reached, to measure how much headroom is left.</p>
 </div>
 </div>
 </div>
@@ -10364,7 +10319,7 @@ Popularity                fitted+scored in 0s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Reading Check 1.</strong> At identical settings the library's ALS scores 0.2034 against our 0.2042, a difference of 0.0007, far inside the bootstrap interval: two independent solvers agree, so the ALS number is not an artifact of our code. Doubling the factors to 256 adds 0.0050 (0.2092), which leaves ALS below EASE's 0.2251: the remaining "edge" in the ALS search cannot close the gap. The library's BPR, tuned on validation, reaches 0.1386 against our 0.1498, so our BPR is not the weak link either; BPR itself is.</p>
+<p><strong>Reading Check 1.</strong> At identical settings, the library's ALS scores 0.2034 against our 0.2042, a difference of 0.0007 and far inside the bootstrap interval. Two independent solvers agree, so the ALS number is not an artifact of our code. Doubling the factors to 256 adds 0.0050 (0.2092), which still leaves ALS below EASE's 0.2251, so the remaining edge in the ALS search cannot close the gap. The library's BPR, tuned on validation, reaches 0.1386 against our 0.1498, so our BPR is not the weak link either; the method itself is.</p>
 </div>
 </div>
 </div>
@@ -10375,8 +10330,9 @@ Popularity                fitted+scored in 0s
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Check-2:-does-the-ordering-survive-a-different-split?">Check 2: does the ordering survive a different split?<a class="anchor-link" href="#Check-2:-does-the-ordering-survive-a-different-split?">¶</a></h3><p>The bootstrap intervals in 4.3 capture noise from <em>which users</em> we evaluate, not from <em>which game</em> each user had hidden. Here the per-user split is redrawn with new seeds, every model is refit with the hyper-parameters already selected (they are not re-tuned, so this is a test of the result, not a second chance to fit), and the test metric is recomputed.</p>
-<h3 id="Check-3:-is-a-random-hidden-game-a-fair-stand-in-for-a-game-the-user-is-playing-now?">Check 3: is a random hidden game a fair stand-in for a game the user is playing now?<a class="anchor-link" href="#Check-3:-is-a-random-hidden-game-a-fair-stand-in-for-a-game-the-user-is-playing-now?">¶</a></h3><p>The honest objection to this whole study is that a deployed recommender predicts <em>forward</em> in time, and a random holdout does not. The file has no timestamps, but <code>playtime_2weeks</code> marks games played in the two weeks before the crawl. For every user with at least one such game we hide <strong>one recently played game</strong> instead of a random one, train on all their other games, and compare the models on exactly those users. This is not a temporal split (a recently played game may be an old favorite, and the training row can contain games bought later), so we read it as a stress test: if the model ordering changed here, conclusions drawn from the random split would be suspect.</p>
+<h3 id="Check-2:-does-the-ordering-survive-a-different-split?">Check 2: does the ordering survive a different split?<a class="anchor-link" href="#Check-2:-does-the-ordering-survive-a-different-split?">¶</a></h3><p>The bootstrap intervals in 4.3 capture noise from <em>which players</em> we evaluate, but not from <em>which game</em> each player had hidden. To measure that, we redraw the per-player split with new seeds, refit every model with the settings already selected, and recompute the test metrics. The settings are deliberately not re-tuned, so this tests the result rather than giving the models a second chance to fit.</p>
+<h3 id="Check-3:-is-a-random-hidden-game-a-fair-stand-in-for-a-game-the-player-is-playing-now?">Check 3: is a random hidden game a fair stand-in for a game the player is playing now?<a class="anchor-link" href="#Check-3:-is-a-random-hidden-game-a-fair-stand-in-for-a-game-the-player-is-playing-now?">¶</a></h3><p>The strongest objection to this whole study is that a deployed recommender predicts forward in time, and a random holdout does not. The file has no timestamps, but <code>playtime_2weeks</code> marks the games played in the two weeks before the crawl. For every player with at least one such game, we hide <strong>one recently played game</strong> instead of a random one, train on all their other games, and compare the models on exactly those players.</p>
+<p>This is not a true temporal split, because a recently played game may be an old favorite, and the training row can contain games bought later. We therefore read it as a stress test: if the model ordering changed here, conclusions drawn from the random split would be suspect.</p>
 </div>
 </div>
 </div>
@@ -10690,14 +10646,12 @@ Ordering under recent holdout : EASE &gt; ALS (playtime-weighted) &gt; ALS (bina
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Reading Check 2.</strong> Across four independent splits no model's NDCG@10 moves by more than 0.0030 (one standard deviation), and EASE wins every one by at least 0.0210. The only change in ordering is between Item-kNN and BPR, which are tied to begin with. The headline does not depend on the seed.</p>
-<p><strong>Reading Check 3.</strong> Hiding a <em>recently played</em> game changes the levels sharply and the conclusions in three specific ways.</p>
-<ul>
-<li><strong>Everything looks easier, mostly because of popularity.</strong> The hidden game is one of the 100 most-played titles 59% of the time, against 43% under the random holdout, and Popularity alone jumps from 0.1124 to 0.2643 on the same users.</li>
-<li><strong>Personalization is worth less than the random split suggests.</strong> EASE still wins (0.3289), but its margin over Popularity falls from +90% to +24%. The random holdout overstates how much a deployed system would gain from personalization.</li>
-<li><strong>Playtime weighting flips from harmful to helpful.</strong> Weighted ALS overtakes binary ALS (0.3139 vs. 0.2905), the reverse of the main table. A random hidden game is often something the user tried for minutes; a currently played game is one they are invested in, and the weighted model has learned which of a user's games those are. BPR, by contrast, falls below Popularity (0.2405 vs. 0.2643).</li>
-</ul>
-<p>The winner is stable; the size of the win and the value of the playtime signal are not. Both depend on what "the right answer" is taken to be, which is the strongest argument for collecting timestamps before trusting any of these numbers as a forecast.</p>
+<p><strong>Reading Check 2.</strong> Across four independent splits, no model's NDCG@10 moves by more than 0.0030 (one standard deviation), and EASE wins every split by at least 0.0210. The only change in ordering is between Item-kNN and BPR, which are tied to begin with. The headline result does not depend on the seed.</p>
+<p><strong>Reading Check 3.</strong> Hiding a recently played game changes the scores sharply, and it changes our conclusions in three specific ways.</p>
+<p>First, every model looks better, mostly because of popularity. The hidden game is one of the 100 most-played titles 59% of the time, against 43% under the random holdout, and Popularity alone jumps from 0.1124 to 0.2643 on the same players.</p>
+<p>Second, personalization is worth less than the random split suggests. EASE still wins (0.3289), but its lead over Popularity falls from +90% to +24%. The random holdout overstates how much a deployed system would gain from personalization.</p>
+<p>Third, playtime weighting goes from harmful to helpful. Weighted ALS overtakes binary ALS (0.3139 against 0.2905), the reverse of the main table. A random hidden game is often something the player tried for a few minutes, while a currently played game is one they are invested in, and the weighted model has learned which games those are. BPR, by contrast, falls below Popularity (0.2405 against 0.2643).</p>
+<p>The winner is stable, but the size of the win and the value of the playtime signal are not. Both depend on what we take the right answer to be, which is the strongest argument for collecting timestamps before treating any of these numbers as a forecast. Having checked that the result holds, we now look beyond the averages.</p>
 </div>
 </div>
 </div>
@@ -10708,7 +10662,7 @@ Ordering under recent holdout : EASE &gt; ALS (playtime-weighted) &gt; ALS (bina
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.5-Error-analysis:-where-does-each-model-win?">4.5 Error analysis: <em>where</em> does each model win?<a class="anchor-link" href="#4.5-Error-analysis:-where-does-each-model-win?">¶</a></h2><p>A single average can hide that personalization only helps some users or some games. We break the test results down by (a) how many games the user has, and (b) how popular the held-out game is. Popularity should dominate <strong>head</strong> games by construction; the interesting question is whether personalized models earn their keep on the <strong>torso and tail</strong>.</p>
+<h2 id="4.5-Error-analysis:-where-does-each-model-win?">4.5 Error analysis: where does each model win?<a class="anchor-link" href="#4.5-Error-analysis:-where-does-each-model-win?">¶</a></h2><p>An average over all players can hide the fact that personalization only helps some players or some games. We therefore break the test results down by how many games a player has and by how popular the hidden game is. Popularity should win on head games by construction; the real question is whether the personalized models earn their place on the torso and the tail.</p>
 </div>
 </div>
 </div>
@@ -10771,12 +10725,13 @@ Share of test games per popularity bucket:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.6-Beyond-accuracy:-coverage-and-exposure">4.6 Beyond accuracy: coverage and exposure<a class="anchor-link" href="#4.6-Beyond-accuracy:-coverage-and-exposure">¶</a></h2><p>A recommender that only ever shows the 10 biggest games can score well on accuracy and still be useless for discovery. On a sample of up to 10,000 users we measure, for the top-10 lists:</p>
+<h2 id="4.6-Beyond-accuracy:-coverage-and-exposure">4.6 Beyond accuracy: coverage and exposure<a class="anchor-link" href="#4.6-Beyond-accuracy:-coverage-and-exposure">¶</a></h2><p>A recommender that only ever shows the ten biggest games can still score well on accuracy while being useless for discovery. To check this, we look at the top-ten lists for a sample of up to 10,000 players and measure three things:</p>
 <ul>
-<li><strong>Catalog coverage:</strong> fraction of games recommended to at least one user.</li>
-<li><strong>Exposure Gini:</strong> inequality of how often each game is recommended (0 = uniform, 1 = one game gets everything).</li>
-<li><strong>Mean popularity percentile</strong> of recommended games (lower = more adventurous).</li>
+<li><strong>Catalog coverage:</strong> the share of games recommended to at least one player.</li>
+<li><strong>Exposure Gini:</strong> how unequally recommendations are spread across games (0 means every game is shown equally often, 1 means one game gets everything).</li>
+<li><strong>Mean popularity percentile</strong> of the recommended games (lower means more adventurous).</li>
 </ul>
+<p>Popularity covers 1.9% of the catalog, ALS 17.5%, EASE 31.0%, and BPR 36.1%. On tail games, Popularity's NDCG@10 is zero while EASE's is 0.021. Accuracy and discovery are separate goals, and the most accurate model here is also among the most varied.</p>
 </div>
 </div>
 </div>
@@ -10908,7 +10863,7 @@ Share of test games per popularity bucket:
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4.7-Qualitative-checks:-do-the-learned-representations-make-sense?">4.7 Qualitative checks: do the learned representations make sense?<a class="anchor-link" href="#4.7-Qualitative-checks:-do-the-learned-representations-make-sense?">¶</a></h2><p>Numbers can look good for the wrong reasons, so we also inspect (a) nearest-neighbor games under the ALS item factors and the Item-kNN similarity, (b) a t-SNE map of the 500 most-played games' ALS embeddings, and (c) one real user's recommendations.</p>
+<h2 id="4.7-Qualitative-checks:-do-the-learned-representations-make-sense?">4.7 Qualitative checks: do the learned representations make sense?<a class="anchor-link" href="#4.7-Qualitative-checks:-do-the-learned-representations-make-sense?">¶</a></h2><p>Good numbers can come from the wrong reasons, so we end the evaluation by looking at what the models have actually learned. We inspect the nearest-neighbor games under the ALS item factors and under the Item-kNN similarity, a t-SNE map of the ALS embeddings for the 500 most-played games, and one real player's recommendations. If the neighbors of a game are games a person would recognize as similar, the factors are capturing taste rather than noise.</p>
 </div>
 </div>
 </div>
@@ -11092,25 +11047,15 @@ EASE  (held-out game ranked #1 of 3199)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="5.-Related-work,-conclusions,-and-limitations">5. Related work, conclusions, and limitations<a class="anchor-link" href="#5.-Related-work,-conclusions,-and-limitations">¶</a></h1><h2 id="5.1-Related-work">5.1 Related work<a class="anchor-link" href="#5.1-Related-work">¶</a></h2><p><strong>This dataset.</strong> The file is part of the UCSD <em>Steam Video Game and Bundle Data</em> collection (McAuley, Kang &amp; Pasricha). The lab's own papers on Steam study different tasks from ours:</p>
-<ul>
-<li>Kang &amp; McAuley, <em>Self-Attentive Sequential Recommendation</em> (ICDM 2018): next-item prediction from the <em>order</em> of a user's interactions.</li>
-<li>Wan &amp; McAuley, <em>Item Recommendation on Monotonic Behavior Chains</em> (RecSys 2018): chains of progressively stronger signals (e.g. purchase, play, review, recommend).</li>
-<li>Pathak, Gupta &amp; McAuley, <em>Generating and Personalizing Bundle Recommendations on Steam</em> (SIGIR 2017): recommending bundles rather than single games.</li>
-<li>The underlying profile crawl is from O'Neill, Vaziripour, Wu &amp; Zappala, <em>Condensing Steam: Distilling the Diversity of Gamer Behavior</em> (IMC 2016), a measurement study of ownership and playtime on Steam.</li>
-</ul>
-<p><strong>Methods we implement.</strong> Hu, Koren &amp; Volinsky, <em>Collaborative Filtering for Implicit Feedback Datasets</em> (ICDM 2008) for confidence-weighted ALS; Rendle, Freudenthaler, Gantner &amp; Schmidt-Thieme, <em>BPR: Bayesian Personalized Ranking from Implicit Feedback</em> (UAI 2009); Cremonesi, Koren &amp; Turrin, <em>Performance of Recommender Algorithms on Top-N Recommendation Tasks</em> (RecSys 2010) for PureSVD; Steck, <em>Embarrassingly Shallow Autoencoders for Sparse Data</em> (WWW 2019) for EASE, which names SLIM (Ning &amp; Karypis, ICDM 2011) as its closest relative.</p>
-<p><strong>Evaluation methodology.</strong> Krichene &amp; Rendle, <em>On Sampled Metrics for Item Recommendation</em> (KDD 2020) show that metrics computed against sampled negatives can reorder models, which is why we rank against the full catalog. Ferrari Dacrema, Cremonesi &amp; Jannach, <em>Are We Really Making Much Progress?</em> (RecSys 2019) show that carefully tuned simple baselines often match or beat newer neural methods, which is why no model here is reported from a setting on the edge of its search.</p>
-<p><strong>How our setting differs from prior Steam work.</strong> Sequential models such as SASRec need timestamps and are usually evaluated leave-last-out on <em>reviews</em>. This file has <strong>no timestamps</strong> and records <strong>playtime</strong>, so we use a random per-user holdout and a "played" signal. Absolute numbers are therefore not comparable to published Steam results; only the <em>relative ordering of methods</em> can be compared.</p>
-<p><strong>How our results match or differ from related work.</strong></p>
-<ul>
-<li><em>EASE first, matrix factorization second</em> matches Steck (2019), who reports EASE ahead of weighted matrix factorization and, on most of his datasets (MovieLens-20M, Netflix Prize, Million Song Dataset), ahead of deep non-linear models. Steam playtime data adds one more dataset where a closed-form linear item model leads.</li>
-<li><em>The size of the gap depends on tuning</em>, which matches Rendle, Krichene, Zhang &amp; Koren, <em>Revisiting the Performance of iALS on Item Recommendation Benchmarks</em> (RecSys 2022). They show that implicit ALS, usually reported as far behind autoencoder-style models, becomes competitive once regularization and embedding size are tuned properly. We see the same mechanism: tuning regularization moved ALS far more than any other change in this notebook, and the remaining gap to EASE is about a tenth.</li>
-<li><em>BPR trailing on top-N metrics while leading on AUC</em> is consistent with BPR's design (Rendle et al., 2009, derive it as an AUC surrogate) and with Rendle &amp; Freudenthaler, <em>Improving Pairwise Learning for Item Recommendation from Implicit Feedback</em> (WSDM 2014), who show that uniformly sampled negatives give vanishing gradients on long-tailed catalogs. Their remedy is an <em>adaptive</em> sampler that picks negatives the model currently ranks high; our static popularity sampler is a cruder idea and, as Section 4.2 shows, it backfires under a random holdout.</li>
-<li><em>A well-tuned neighborhood model within reach of a factor model</em> echoes Ferrari Dacrema et al. (2019); here Item-kNN matches BPR but not ALS.</li>
-<li><em>Where we differ from prior Steam work:</em> Kang &amp; McAuley (2018) evaluate next-item prediction on time-ordered Steam reviews and report sequence models ahead of non-sequential baselines such as BPR. We cannot test that claim on this file. Check 3 is the closest we can get, and it points the same way: results move a lot once the target is tied to <em>when</em> a game is played.</li>
-</ul>
-<h2 id="5.2-Conclusions">5.2 Conclusions<a class="anchor-link" href="#5.2-Conclusions">¶</a></h2>
+<h1 id="5.-Related-work,-conclusions,-and-limitations">5. Related work, conclusions, and limitations<a class="anchor-link" href="#5.-Related-work,-conclusions,-and-limitations">¶</a></h1><p>Finally, we place our results next to prior work on this dataset and these methods, state what we conclude, and list what we would not claim.</p>
+<h2 id="5.1-Related-work">5.1 Related work<a class="anchor-link" href="#5.1-Related-work">¶</a></h2><p><strong>This dataset.</strong> The file is part of the UCSD <em>Steam Video Game and Bundle Data</em> collection (McAuley, Kang &amp; Pasricha). The lab's own Steam papers study different tasks from ours. Kang &amp; McAuley, <em>Self-Attentive Sequential Recommendation</em> (ICDM 2018), predict the next item from the order of a user's interactions. Wan &amp; McAuley, <em>Item Recommendation on Monotonic Behavior Chains</em> (RecSys 2018), model chains of progressively stronger signals such as purchase, play, review, and recommend. Pathak, Gupta &amp; McAuley, <em>Generating and Personalizing Bundle Recommendations on Steam</em> (SIGIR 2017), recommend bundles rather than single games. The profile crawl itself comes from O'Neill, Vaziripour, Wu &amp; Zappala, <em>Condensing Steam: Distilling the Diversity of Gamer Behavior</em> (IMC 2016), a measurement study of ownership and playtime on Steam.</p>
+<p><strong>The methods we implement.</strong> Confidence-weighted ALS follows Hu, Koren &amp; Volinsky, <em>Collaborative Filtering for Implicit Feedback Datasets</em> (ICDM 2008). BPR follows Rendle, Freudenthaler, Gantner &amp; Schmidt-Thieme, <em>BPR: Bayesian Personalized Ranking from Implicit Feedback</em> (UAI 2009). PureSVD follows Cremonesi, Koren &amp; Turrin, <em>Performance of Recommender Algorithms on Top-N Recommendation Tasks</em> (RecSys 2010). EASE follows Steck, <em>Embarrassingly Shallow Autoencoders for Sparse Data</em> (WWW 2019), which names SLIM (Ning &amp; Karypis, ICDM 2011) as its closest relative.</p>
+<p><strong>Our evaluation methodology.</strong> Krichene &amp; Rendle, <em>On Sampled Metrics for Item Recommendation</em> (KDD 2020), show that metrics computed against sampled negatives can reorder models, which is why we rank against the full catalog. Ferrari Dacrema, Cremonesi &amp; Jannach, <em>Are We Really Making Much Progress?</em> (RecSys 2019), show that carefully tuned simple baselines often match or beat newer neural methods, which is why we check that no model is reported from a setting on the edge of its search.</p>
+<p><strong>How our setting differs.</strong> Sequential models such as SASRec need timestamps and are usually evaluated by hiding each user's last review. This file has no timestamps and records playtime instead, so we use a random per-player holdout and a "played" signal. Our absolute numbers are therefore not comparable to published Steam results; only the relative ordering of methods is.</p>
+<p><strong>Where our results match and where they differ.</strong> Our ordering, EASE first and matrix factorization second, matches Steck (2019), who reports EASE ahead of weighted matrix factorization and, on most of his datasets, ahead of deep non-linear models; Steam playtime data adds one more dataset where a closed-form linear item model leads. The size of the gap depending on tuning matches Rendle, Krichene, Zhang &amp; Koren, <em>Revisiting the Performance of iALS on Item Recommendation Benchmarks</em> (RecSys 2022), who show that implicit ALS becomes competitive once regularization and embedding size are tuned properly. We see the same mechanism: tuning regularization moved ALS more than any other change in this notebook.</p>
+<p>BPR leading on AUC while trailing on top-N metrics is consistent with its design, since Rendle et al. (2009) derive it as an AUC surrogate, and with Rendle &amp; Freudenthaler, <em>Improving Pairwise Learning for Item Recommendation from Implicit Feedback</em> (WSDM 2014), who show that uniformly sampled negatives give vanishing gradients on long-tailed catalogs. Their remedy is an adaptive sampler that picks negatives the model currently ranks high; our static popularity sampler is a cruder version of that idea and, as Section 4.2 shows, it backfires under a random holdout. A well-tuned neighborhood model coming within reach of a factor model echoes Ferrari Dacrema et al. (2019); here Item-kNN matches BPR but not ALS.</p>
+<p>Where we differ is the recency check. Kang &amp; McAuley (2018) evaluate next-item prediction on time-ordered Steam reviews and report sequence models ahead of non-sequential baselines such as BPR. We cannot test that claim on this file, but Check 3 is the closest we can get, and it points the same way: the results move a lot once the target is tied to when a game is played.</p>
+<h2 id="5.2-Conclusions">5.2 Conclusions<a class="anchor-link" href="#5.2-Conclusions">¶</a></h2><p>The cell below recomputes the headline comparisons from the final results, so the conclusions that follow are tied to the numbers above rather than typed by hand.</p>
 </div>
 </div>
 </div>
@@ -11187,25 +11132,25 @@ EASE  (held-out game ranked #1 of 3199)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>What we conclude.</strong></p>
+<p><strong>What we conclude.</strong> A linear item-to-item model is the best recommender on this data: EASE leads on HR@10, NDCG@10, and MRR on every split, with full-catalog ranking. The best course model is close behind once it is tuned. Binary implicit ALS is within about a tenth of EASE, and most of the outside method's apparent advantage in an untuned comparison turns out to be a tuning artifact rather than a modeling advantage.</p>
+<p>Three further findings qualify that headline:</p>
 <ol>
-<li><strong>A linear item-to-item model is the best recommender here.</strong> EASE leads on HR@10, NDCG@10, and MRR, on every split, with full-catalog ranking.</li>
-<li><strong>The best course model is close behind once it is tuned.</strong> Binary implicit ALS is within about a tenth of EASE. Most of the apparent superiority of the outside method in an untuned comparison is a tuning artifact, not a modeling advantage.</li>
-<li><strong>BPR's weak top-10 result is explained, not excused:</strong> it has the best AUC of any model and a top-10 score near Item-kNN, because it optimizes the former.</li>
-<li><strong>Accuracy and discovery pull apart.</strong> Popularity covers 1.9% of the catalog; EASE covers 31.0%, ALS 17.5%, and BPR 36.1% (at much lower accuracy). The stratified results show personalized models earning their margin on torso and tail games, where Popularity scores nothing.</li>
-<li><strong>How the task is posed matters as much as the model.</strong> Under a recently-played holdout the personalization gain shrinks and playtime weighting becomes useful.</li>
+<li><strong>BPR's weak top-ten result is explained.</strong> It has the best AUC of any model because AUC is what it optimizes; its top-ten score is close to Item-kNN's.</li>
+<li><strong>Accuracy and discovery pull apart.</strong> Popularity covers 1.9% of the catalog, against 31.0% for EASE, 17.5% for ALS, and 36.1% for BPR (at much lower accuracy). The personalized models earn their margin on torso and tail games, where Popularity scores nothing.</li>
+<li><strong>How the task is posed matters as much as the model.</strong> When the hidden game is a recently played one, the gain from personalization shrinks and playtime weighting becomes useful.</li>
 </ol>
-<p><strong>What we would tell a grader to distrust.</strong> The absolute level of every number (it depends on the holdout), and any claim about <em>next</em>-game prediction (we have no timestamps). What we would defend: the ordering EASE &gt; ALS &gt; the rest on top-10 metrics, which held under a second implementation, four splits, and a different choice of hidden game.</p>
-<h2 id="5.3-Limitations-and-validity-threats">5.3 Limitations and validity threats<a class="anchor-link" href="#5.3-Limitations-and-validity-threats">¶</a></h2><ul>
-<li><strong>Offline proxy.</strong> A held-out <em>played</em> game is not a verified preference; a user may play many games they dislike, and may like games they never discovered (exposure bias).</li>
-<li><strong>Random, not temporal, split.</strong> No timestamps are available, so models may see "future" games of the same user. Check 3 in Section 4.4 shows how much the picture moves under a different holdout; it is a stress test, not a temporal evaluation.</li>
-<li><strong>Hyper-parameters tuned on one split.</strong> The re-splits in Section 4.4 reuse the settings selected on the main split, and model initialization uses one seed. Split noise is measured; tuning noise is not.</li>
-<li><strong>Unequal search effort.</strong> ALS and BPR were searched to 128 factors because the NumPy implementations are slow beyond that. The reference-library check bounds what ALS could gain; BPR at larger sizes is untested.</li>
-<li><strong>Sampling.</strong> Results are for a random <code>SAMPLE_FRAC</code> of the users and the k-core-filtered catalog; cold-start games (below <code>MIN_ITEM_USERS</code>) and cold-start users are out of scope.</li>
-<li><strong>Popularity bias in evaluation.</strong> Random per-user holdout favors popular games as targets; the head/torso/tail breakdown is there to expose this.</li>
-<li><strong>Scalability.</strong> EASE and the dense Item-kNN Gram matrix need $O(I^2)$ memory and would not scale to millions of items.</li>
+<p>What we would defend is the ordering EASE &gt; ALS &gt; the rest on top-ten metrics, which held under a second implementation, four splits, and a different choice of hidden game. What we would not defend is the absolute level of any number, which depends on the holdout, or any claim about predicting the next game, since the data has no timestamps.</p>
+<h2 id="5.3-Limitations-and-validity-threats">5.3 Limitations and validity threats<a class="anchor-link" href="#5.3-Limitations-and-validity-threats">¶</a></h2><p>These conclusions come with limits we want to state plainly.</p>
+<ul>
+<li><strong>An offline proxy.</strong> A hidden played game is not a verified preference. A player may play games they dislike, and may like games they never came across.</li>
+<li><strong>A random, not temporal, split.</strong> Without timestamps, models may see a player's "future" games during training. Check 3 shows how much the picture moves under a different holdout, but it is a stress test, not a temporal evaluation.</li>
+<li><strong>Settings tuned on one split.</strong> The re-splits in Section 4.4 reuse the settings selected on the main split, and each model is initialized with one seed. We measure split noise but not tuning noise.</li>
+<li><strong>Unequal search effort.</strong> ALS and BPR were searched only up to 128 factors because our NumPy implementations are slow beyond that. The library check bounds what ALS could gain; BPR at larger sizes is untested.</li>
+<li><strong>Sampling.</strong> Results are for a random <code>SAMPLE_FRAC</code> of the players and the k-core-filtered catalog. Games below <code>MIN_ITEM_USERS</code> and new players are out of scope.</li>
+<li><strong>Popularity bias in evaluation.</strong> A random per-player holdout favors popular games as targets, which is why we report the head, torso, and tail breakdown.</li>
+<li><strong>Scalability.</strong> EASE and the dense Item-kNN Gram matrix need $O(I^2)$ memory and would not scale to millions of games.</li>
 </ul>
-<h2 id="5.4-Future-work">5.4 Future work<a class="anchor-link" href="#5.4-Future-work">¶</a></h2><p>Time-aware split using review timestamps, content features (genres, tags) for cold-start games, hybrid models blending EASE and ALS scores, sequence models (SASRec), and bundle-aware recommendation.</p>
+<h2 id="5.4-Future-work">5.4 Future work<a class="anchor-link" href="#5.4-Future-work">¶</a></h2><p>The most valuable next step is a time-aware split, for example using review timestamps, which would let us test next-game prediction directly. Beyond that, content features such as genres and tags would help with new games, a hybrid blending EASE and ALS scores might combine EASE's accuracy with ALS's scalability, and sequence models (SASRec) and bundle-aware recommendation would connect this work to the lab's own Steam papers.</p>
 </div>
 </div>
 </div>
