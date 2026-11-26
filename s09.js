@@ -31,7 +31,7 @@
     for (const sg of [-1, 1]) { const qx = 320 + sg * dx, qy = 186 - sg * dy; seg(qx, qy, qx - 7, qy + 16, DM); seg(qx, qy, qx + 7, qy + 16, DM); R(qx - 9, qy + 16, 19, 2, O2); R(qx - 4, qy + 9, 8, 7, sg > 0 ? Y1 : GR) } circ(320, 184, 3, Y2);
     plate("BPR-MF", 320, 222, Y2, { al: "c", bd: R1 }); if ((T * 1.3 | 0) % 3 === 0) { R(300, 190 + (T * 20 % 14), 1, 3, B2) }
     if (st.b === 0) plate(["AUC: 1ST OF 7", "NDCG@10: 6TH OF 7"], 480, 196, Y2, { cols: [G2, M3] });
-    if (st.b === 4 && st.A(4, .3, .3) >= 1) { plate(["LIBRARY BPR (implicit)  0.1386", "OUR BPR                 0.1498", "NOT A BUG. IT IS THE METHOD."], 36, 184, Y2, { bd: G2, cols: [GL, Y1, G2] }) }
+    if (st.b === 4 && st.A(4, .3, .3) >= 1) { plate(["LIBRARY BPR (implicit)  0.1387", "OUR BPR                 0.1498", "NOT A BUG. IT IS THE METHOD."], 36, 184, Y2, { bd: G2, cols: [GL, Y1, G2] }) }
   }
   SCENES.push({ floor: "41", name: "INTERROGATION", sec: "EVALUATION", w: W, paint, back, live, start: { x: -20, y: 291, s: .8, pose: "s" }, rim: Y2, clue: 8, clueText: "BPR OPTIMIZES PAIRS, NOT THE TOP TEN", clueY: "b",
     exit: { x: 670 }, exitWipe: "iris", enterWipe: "iris",
@@ -40,5 +40,5 @@
       { foc: [150, 88, 94, 80], say: ["QUESTION 1: DID WE STOP TRAINING TOO EARLY?", "NO. THE LEARNING SIGNAL SHRINKS AND GOES FLAT WITHIN A FEW EPOCHS.", "MORE EPOCHS BUY NOTHING."] },
       { foc: [320, 88, 94, 80], say: ["QUESTION 2: IS IT OPTIMIZING THE WRONG THING?", "YES. BY THE END, 96.3% OF SAMPLED PAIRS ARE ALREADY IN THE RIGHT ORDER.", "THAT IS WHAT AUC 0.949 MEANS. THE TOP TEN IS DECIDED BY THE REST."] },
       { foc: [490, 88, 94, 80], say: ["QUESTION 3: WOULD HARDER NEGATIVES HELP? SAMPLE POPULAR GAMES MORE OFTEN.", "WORSE. VALIDATION NDCG@10 FALLS FROM 0.142 TO 0.078, BELOW POPULARITY."] },
-      { foc: [240, 204, 225, 42], clue: true, clueDelay: 1, say: ["LAST QUESTION: IS IT OUR CODE? THE implicit LIBRARY'S BPR SCORES 0.1386.", "OURS SCORES 0.1498. SO NO.", "VERDICT: BPR DOES ITS JOB. ITS JOB IS PAIRS, NOT THE TOP TEN."] }] });
+      { foc: [240, 204, 225, 42], clue: true, clueDelay: 1, say: ["LAST QUESTION: IS IT OUR CODE? THE implicit LIBRARY'S BPR SCORES 0.1387.", "OURS SCORES 0.1498. SO NO.", "VERDICT: BPR DOES ITS JOB. ITS JOB IS PAIRS, NOT THE TOP TEN."] }] });
 })();
