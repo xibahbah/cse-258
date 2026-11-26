@@ -87,7 +87,7 @@ To validate the evaluation itself, we wrote known-answer tests: four small hand-
 
 **18** · *THE SOURCE: 88,310 STEAM PROFILES*
 
-Thanks, Keith. Section two is the data. We use the Steam dataset from Professor McAuley's lab, specifically the Australian users file. It was collected by crawling public Steam profiles for a 2016 study of how people use Steam. The raw file has 88,310 profile lines, each listing a player's games and playtime. That's notebook Section 2.1.
+Thanks, Keith. Section two is the data. We use the Steam dataset from Professor McAuley's lab, specifically the Australian users file. Pathak and colleagues collected it for a 2017 paper on bundle recommendation, by crawling public profiles from an Australian Steam community. The raw file has 88,310 profile lines, each listing a player's games and playtime. That's notebook Section 2.1.
 
 **19** · *684 PLAYERS ARE FILED TWICE*
 
@@ -261,7 +261,7 @@ One more change: playtime-weighted ALS, at 0.314, now beats binary ALS at 0.291.
 
 **60** · *RELATED WORK: WHO USED THIS DATA?*
 
-Section five is related work. Three papers use this same Steam data for different tasks: Kang and McAuley on sequential recommendation, Wan and McAuley on behavior chains, and Pathak and colleagues on bundle recommendation. They rely on timestamps or reviews, so our numbers aren't directly comparable. This is Section 5.1.
+Section five is related work. Three papers from the same lab work with Steam data on different tasks: Kang and McAuley on sequential recommendation, Wan and McAuley on behavior chains, and Pathak and colleagues on bundle recommendation. They rely on timestamps or reviews, so our numbers aren't directly comparable. This is Section 5.1.
 
 **61** · *DO PUBLISHED RESULTS AGREE? YES.*
 
